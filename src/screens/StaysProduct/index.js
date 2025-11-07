@@ -4,12 +4,11 @@ import styles from "./StaysProduct.module.sass";
 import Product from "../../components/Product";
 import Description from "./Description";
 import Itinerary from "../../components/Itinerary";
+import TabSection from "./TabSection";
 import CommentsProduct from "../../components/CommentsProduct";
 import Browse from "../../components/Browse";
-import Newsletter from "../../components/Newsletter";
 
 // data
-import { browse1 } from "../../mocks/browse";
 import { browse2 } from "../../mocks/browse";
 
 const gallery = [
@@ -29,6 +28,14 @@ const options = [
   {
     title: "Queenstown, Otago, New Zealand",
     icon: "flag",
+  },
+  {
+    title: "Nature & Adventure",
+    icon: "route",
+  },
+  {
+    title: "Off-road Jeep Safari",
+    icon: "car",
   },
 ];
 
@@ -70,6 +77,7 @@ const StaysProduct = () => {
       />
       <Description classSection="section" />
       <Itinerary classSection="section" />
+      <TabSection classSection="section" />
       <CommentsProduct
         className={cn("section", styles.comment)}
         parametersUser={parametersUser}
@@ -77,14 +85,6 @@ const StaysProduct = () => {
         socials={socials}
         buttonText="Contact"
       />
-      <Browse
-        classSection="section"
-        classTitle="h2"
-        title="Browse by property type"
-        info="Let’s go on an adventure"
-        items={browse1}
-      />
-      <Newsletter />
       <Browse
         classSection="section"
         headSmall

@@ -65,14 +65,19 @@ const AddOnsModal = ({ visible, onClose, basePrice = baseTotal }) => {
     );
   };
 
-  const { totalAddOnsPrice, finalTotal } = useMemo(() => {
+  const { totalAddOnsPrice, finalTotal, selectedAddOnsData, selectedNames } = useMemo(() => {
     const addOnsPrice = selectedAddOns.reduce((sum, id) => {
       const addOn = mockAddOns.find((a) => a.id === id);
       return sum + (addOn?.price || 0);
     }, 0);
+    const data = selectedAddOns
+      .map((id) => mockAddOns.find((a) => a.id === id))
+      .filter(Boolean);
     return {
       totalAddOnsPrice: addOnsPrice,
       finalTotal: basePrice + addOnsPrice,
+      selectedAddOnsData: data,
+      selectedNames: data.map((d) => d.name),
     };
   }, [selectedAddOns, basePrice]);
 
@@ -88,9 +93,6 @@ const AddOnsModal = ({ visible, onClose, basePrice = baseTotal }) => {
   };
 
   const handleContinue = () => {
-    const selectedAddOnsData = selectedAddOns.map((id) =>
-      mockAddOns.find((addOn) => addOn.id === id)
-    );
     onClose();
     history.push({
       pathname: "/stays-checkout",
@@ -101,92 +103,101 @@ const AddOnsModal = ({ visible, onClose, basePrice = baseTotal }) => {
   return (
     <Modal visible={visible} onClose={onClose} outerClassName={styles.modalOuter}>
       <div className={styles.modalContent}>
-        <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>Customize your stay</h2>
-          <p className={styles.modalSubtitle}>
-            Select add-ons to enhance your experience
-          </p>
-        </div>
+        <div className={styles.content}>
+          <div className={styles.left}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Customize your stay</h2>
+              <p className={styles.modalSubtitle}>Select add-ons to enhance your experience</p>
+            </div>
 
-        <div className={styles.addOnsList}>
-          {mockAddOns.map((addOn) => (
-            <div
-              key={addOn.id}
-              className={cn(styles.addOnCard, {
-                [styles.addOnCardSelected]: selectedAddOns.includes(addOn.id),
-              })}
-              onClick={() => handleToggleAddOn(addOn.id)}
-            >
-              <div className={styles.addOnImage}>
-                {addOn.image ? (
-                  <img src={addOn.image} alt={addOn.name} />
-                ) : (
-                  <div className={styles.addOnIcon}>
-                    <Icon name="star" size="24" />
+            <div className={styles.addOnsList}>
+              {mockAddOns.map((addOn) => (
+                <div
+                  key={addOn.id}
+                  className={cn(styles.addOnCard, {
+                    [styles.addOnCardSelected]: selectedAddOns.includes(addOn.id),
+                  })}
+                  onClick={() => handleToggleAddOn(addOn.id)}
+                >
+                  <div className={styles.addOnImage}>
+                    {addOn.image ? (
+                      <img src={addOn.image} alt={addOn.name} />
+                    ) : (
+                      <div className={styles.addOnIcon}>
+                        <Icon name="star" size="24" />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              <div className={styles.addOnContent}>
-                <div className={styles.addOnHeader}>
-                  <h3 className={styles.addOnName}>{addOn.name}</h3>
-                  <span className={styles.addOnPrice}>${addOn.price}</span>
+                  <div className={styles.addOnContent}>
+                    <div className={styles.addOnHeader}>
+                      <h3 className={styles.addOnName}>{addOn.name}</h3>
+                      <span className={styles.addOnPrice}>${addOn.price}</span>
+                    </div>
+                    <p className={styles.addOnDescription}>{addOn.description}</p>
+                  </div>
+                  <div
+                    className={styles.addOnCheckbox}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Checkbox
+                      value={selectedAddOns.includes(addOn.id)}
+                      onChange={() => handleToggleAddOn(addOn.id)}
+                    />
+                  </div>
                 </div>
-                <p className={styles.addOnDescription}>{addOn.description}</p>
-              </div>
-              <div
-                className={styles.addOnCheckbox}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Checkbox
-                  value={selectedAddOns.includes(addOn.id)}
-                  onChange={() => handleToggleAddOn(addOn.id)}
-                />
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
 
-        <div className={styles.modalFooter}>
-          <div className={styles.totalSummary}>
-            <div className={styles.totalLine}>
-              <span className={styles.totalLabel}>Base price</span>
-              <span className={styles.totalValue}>${basePrice}</span>
-            </div>
-            {selectedCount > 0 && (
-              <>
-                <div className={styles.totalLine}>
-                  <span className={styles.totalLabel}>
-                    Add-ons ({selectedCount})
-                  </span>
-                  <span className={styles.totalValue}>+${totalAddOnsPrice}</span>
+          <aside className={styles.right}>
+            <div className={styles.summaryCard}>
+              <div className={styles.summaryHeader}>Summary</div>
+              <div className={styles.summaryScroll}>
+                <div className={styles.totalSummary}>
+                  <div className={styles.totalLine}>
+                    <span className={styles.totalLabel}>Base price</span>
+                    <span className={styles.totalValue}>${basePrice}</span>
+                  </div>
+                  {selectedCount > 0 && (
+                    <>
+                      <div className={styles.totalLine}>
+                        <span className={styles.totalLabel}>Add-ons ({selectedCount})</span>
+                        <span className={styles.totalValue}>+${totalAddOnsPrice}</span>
+                      </div>
+                      <div className={styles.selectedList}>
+                        {selectedAddOnsData.map((item) => (
+                          <div key={item.id} className={styles.selectedItem}>
+                            <span className={styles.selectedItemName}>{item.name}</span>
+                            <span className={styles.selectedItemPrice}>${item.price}</span>
+                            <button
+                              className={styles.removeBtn}
+                              aria-label={`Remove ${item.name}`}
+                              onClick={() => handleToggleAddOn(item.id)}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className={cn(styles.totalLine, styles.totalLineFinal)}>
+                        <span className={styles.totalLabelFinal}>Total</span>
+                        <span className={styles.totalValueFinal}>${finalTotal}</span>
+                      </div>
+                    </>
+                  )}
+                  {selectedCount === 0 && (
+                    <div className={cn(styles.totalLine, styles.totalLineFinal)}>
+                      <span className={styles.totalLabelFinal}>Total</span>
+                      <span className={styles.totalValueFinal}>${basePrice}</span>
+                    </div>
+                  )}
                 </div>
-                <div className={cn(styles.totalLine, styles.totalLineFinal)}>
-                  <span className={styles.totalLabelFinal}>Total</span>
-                  <span className={styles.totalValueFinal}>${finalTotal}</span>
-                </div>
-              </>
-            )}
-            {selectedCount === 0 && (
-              <div className={cn(styles.totalLine, styles.totalLineFinal)}>
-                <span className={styles.totalLabelFinal}>Total</span>
-                <span className={styles.totalValueFinal}>${basePrice}</span>
               </div>
-            )}
-          </div>
-          <div className={styles.modalActions}>
-            <button
-              className={cn("button-stroke", styles.actionButton)}
-              onClick={handleSkip}
-            >
-              Skip
-            </button>
-            <button
-              className={cn("button", styles.actionButton)}
-              onClick={handleContinue}
-            >
-              Continue
-            </button>
-          </div>
+
+              <button className={cn("button", styles.actionButton)} onClick={handleContinue}>Continue</button>
+              <button className={cn("button-stroke", styles.skipButton)} onClick={handleSkip}>Skip for now</button>
+            </div>
+          </aside>
         </div>
       </div>
     </Modal>

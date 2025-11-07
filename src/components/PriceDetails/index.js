@@ -73,21 +73,26 @@ const PriceDetails = ({
           <div className={styles.addOnsSection}>
             <div className={styles.addOnsTitle}>Add-ons</div>
             <div className={styles.addOnsList}>
-              {addOns.map((addOn, index) => (
-                <div className={styles.addOnItem} key={index}>
-                  <div className={styles.addOnItemName}>{addOn.name}</div>
-                  <div className={styles.addOnItemPrice}>${addOn.price}</div>
-                  {onRemoveAddOn && (
-                    <button
-                      className={styles.addOnRemoveButton}
-                      onClick={() => onRemoveAddOn(index)}
-                      aria-label={`Remove ${addOn.name}`}
-                    >
-                      <Icon name="close" size="16" />
-                    </button>
-                  )}
-                </div>
-              ))}
+              {addOns.map((addOn, index) => {
+                const addOnName = addOn?.title || addOn?.name || "Add-on";
+                // Use the formatted price string if available (e.g., "$15 × 2 = $30"), otherwise use priceValue
+                const addOnPriceDisplay = addOn?.price || (addOn?.priceValue ? `$${addOn.priceValue}` : "$0");
+                return (
+                  <div className={styles.addOnItem} key={index}>
+                    <div className={styles.addOnItemName}>{addOnName}</div>
+                    <div className={styles.addOnItemPrice}>{addOnPriceDisplay}</div>
+                    {onRemoveAddOn && (
+                      <button
+                        className={styles.addOnRemoveButton}
+                        onClick={() => onRemoveAddOn(index)}
+                        aria-label={`Remove ${addOnName}`}
+                      >
+                        <Icon name="close" size="16" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

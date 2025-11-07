@@ -84,7 +84,7 @@ const Gallery = ({ className, items, type }) => {
         </div>
       </div>
       <PhotoView
-        title="Spectacular views of Queenstown"
+        title="Spectacular views of Queenstowsdffn"
         initialSlide={initialSlide}
         visible={visible}
         items={items}

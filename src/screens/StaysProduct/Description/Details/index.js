@@ -2,19 +2,33 @@ import React from "react";
 import cn from "classnames";
 import styles from "./Details.module.sass";
 import Icon from "../../../../components/Icon";
+import Switch from "../../../../components/Switch";
 
-const parameters = [
+const facts = [
   {
-    title: "2 guests",
-    icon: "home",
+    heading: "Duration",
+    value: "3 hours",
+    icon: "stopwatch",
   },
   {
-    title: "1 bedroom",
-    icon: "flag",
+    heading: "Difficulty Level",
+    value: "Moderate",
+    icon: "lightning",
   },
   {
-    title: "1 private bath",
-    icon: "flag",
+    heading: "Minimum Age",
+    value: "12+",
+    icon: "user",
+  },
+  {
+    heading: "Group Size",
+    value: "Up to 8",
+    icon: "user",
+  },
+  {
+    heading: "Private Option",
+    value: "Available",
+    icon: "lock",
   },
 ];
 
@@ -53,25 +67,45 @@ const options = [
   },
 ];
 
-const Details = ({ className }) => {
+export const addOns = [
+  {
+    id: 1,
+    title: "Professional Photography Package",
+    description: "Professional photographer captures your adventure with high-quality photos delivered digitally",
+    price: "$45",
+    priceValue: 45,
+    isPopular: true,
+  },
+  {
+    id: 2,
+    title: "Traditional Kerala Lunch",
+    description: "Authentic Kerala-style vegetarian lunch prepared fresh by local chefs using organic ingredients",
+    price: "$15 × 2 = $30",
+    priceValue: 30,
+    isPopular: true,
+  },
+  {
+    id: 3,
+    title: "Hotel Pickup & Drop-off",
+    description: "Convenient door-to-door transportation from your hotel in comfortable air-conditioned vehicle",
+    price: "$25 (per group)",
+    priceValue: 25,
+    isPopular: false,
+  },
+  {
+    id: 4,
+    title: "Premium Binoculars Rental",
+    description: "High-quality binoculars (10x42) for enhanced wildlife viewing and bird watching throughout the tour",
+    price: "$10 × 2 = $20",
+    priceValue: 20,
+    isPopular: false,
+  },
+];
+
+const Details = ({ className, selectedAddOns, onToggleAddOn }) => {
   return (
     <div className={cn(className, styles.details)}>
       <h4 className={cn("h4", styles.title)}>Private room in house</h4>
-      <div className={styles.profile}>
-        <span>Hosted by</span>
-        <div className={styles.avatar}>
-          <img src="/images/content/avatar.jpg" alt="Avatar" />
-        </div>
-        <div className={styles.name}>Zoe Towne</div>
-      </div>
-      <div className={styles.parameters}>
-        {parameters.map((x, index) => (
-          <div className={styles.parameter} key={index}>
-            <Icon name={x.icon} size="20" />
-            {x.title}
-          </div>
-        ))}
-      </div>
       <div className={styles.content}>
         <p>
           Described by Queenstown House & Garden magazine as having 'one of the
@@ -89,18 +123,62 @@ const Details = ({ className }) => {
           lights by night.
         </p>
       </div>
-      <div className={styles.info}>Amenities</div>
-      <div className={styles.options}>
-        {options.map((x, index) => (
-          <div className={styles.option} key={index}>
-            <Icon name={x.icon} size="24" />
-            {x.title}
+      <div className={styles.facts}>
+        {facts.map((x, index) => (
+          <div className={styles.fact} key={index}>
+            <div className={styles.factIcon}>
+              <Icon name={x.icon} size="20" />
+            </div>
+            <div className={styles.factContent}>
+              <div className={styles.factHeading}>{x.heading}</div>
+              <div className={styles.factValue}>{x.value}</div>
+            </div>
           </div>
         ))}
       </div>
-      <button className={cn("button-stroke button-small", styles.button)}>
-        More detail
-      </button>
+      <div className={styles.enhanceSection}>
+        <h4 className={styles.enhanceTitle}>Enhance Your Experience</h4>
+        <div className={styles.addOnsList}>
+          {addOns.map((addOn) => (
+            <div
+              key={addOn.id}
+              className={cn(styles.addOnCard, {
+                [styles.addOnCardSelected]: selectedAddOns.includes(addOn.id),
+              })}
+            >
+              <div className={styles.addOnContent}>
+                <div className={styles.addOnHeader}>
+                  <div className={styles.addOnTitleRow}>
+                    <h5 className={styles.addOnTitle}>{addOn.title}</h5>
+                    {addOn.isPopular && (
+                      <span className={styles.popularBadge}>Popular</span>
+                    )}
+                  </div>
+                  <div className={styles.addOnPrice}>{addOn.price}</div>
+                </div>
+                <p className={styles.addOnDescription}>{addOn.description}</p>
+              </div>
+              <div className={styles.addOnSwitch}>
+                <Switch
+                  value={selectedAddOns.includes(addOn.id)}
+                  onChange={() => onToggleAddOn(addOn.id)}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={styles.info}>What's Included</div>
+      <div className={styles.optionsWrapper}>
+        <div className={styles.options}>
+          {options.map((x, index) => (
+            <div className={styles.option} key={index}>
+              <Icon name={x.icon} size="24" />
+              {x.title}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

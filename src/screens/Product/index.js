@@ -43,7 +43,7 @@ const options = [
     icon: "user",
   },
   {
-    title: "Queenstown, Otago, New Zealand",
+    title: "Queenstown, assaOtago, New Zealand",
     icon: "flag",
   },
 ];

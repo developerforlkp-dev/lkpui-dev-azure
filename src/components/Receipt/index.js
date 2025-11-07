@@ -10,6 +10,9 @@ const Receipt = ({
   priceOld,
   priceActual,
   time,
+  stacked,
+  onItemClick,
+  renderItem, // Custom render function for items
 }) => {
   return (
     <div className={cn(className, styles.receipt)}>
@@ -35,20 +38,36 @@ const Receipt = ({
       </div>
       <div
         className={cn(styles.description, {
-          [styles.flex]: items.length > 1,
+          [styles.flex]: items.length > 1 && !stacked,
         })}
       >
-        {items.map((x, index) => (
-          <div className={styles.item} key={index}>
-            <div className={styles.icon}>
-              <Icon name={x.icon} size="24" />
+        {items.map((x, index) => {
+          // Use custom render function if provided
+          if (renderItem) {
+            const customRender = renderItem(x, index);
+            if (customRender) {
+              return <div key={index} className={styles.itemWrapper}>{customRender}</div>;
+            }
+          }
+          
+          // Default rendering
+          return (
+            <div
+              className={styles.item}
+              key={index}
+              onClick={onItemClick ? () => onItemClick(index) : undefined}
+              role={onItemClick ? "button" : undefined}
+            >
+              <div className={styles.icon}>
+                <Icon name={x.icon} size="24" />
+              </div>
+              <div className={styles.box}>
+                <div className={styles.category}>{x.category}</div>
+                <div className={styles.subtitle}>{x.title}</div>
+              </div>
             </div>
-            <div className={styles.box}>
-              <div className={styles.category}>{x.category}</div>
-              <div className={styles.subtitle}>{x.title}</div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className={styles.body}>{children}</div>
     </div>

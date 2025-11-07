@@ -62,8 +62,7 @@
             transform: rotate(90deg)
 
 .modalContent
-    display: flex
-    flex-direction: column
+    display: block
     background: $n8
     border-radius: 16px
     overflow: hidden
@@ -74,6 +73,35 @@
         max-height: calc(100vh - 32px)
     +dark
         background: $n1
+
+.content
+    display: flex
+    gap: 0
+    height: 100%
+    +m
+        flex-direction: column
+
+.left
+    flex: 1
+    display: flex
+    flex-direction: column
+    min-height: 0
+
+.right
+    width: 340px
+    border-left: 1px solid $n6
+    background: $n8
+    padding: 24px
+    min-height: 0
+    +t
+        width: 320px
+    +m
+        width: 100%
+        border-left: none
+        border-top: 1px solid $n6
+    +dark
+        background: $n1
+        border-color: $n3
 
 .modalHeader
     padding: 32px 40px 24px
@@ -108,13 +136,16 @@
     overflow-y: auto
     overflow-x: hidden
     padding: 24px 40px
+    max-height: calc(85vh - 140px)
     -webkit-overflow-scrolling: touch
     scrollbar-width: thin
     scrollbar-color: $n4 $n7
     +t
         padding: 20px 36px
+        max-height: calc(90vh - 140px)
     +m
         padding: 20px
+        max-height: none
     +dark
         scrollbar-color: $n5 $n2
     &::-webkit-scrollbar
@@ -259,18 +290,79 @@
 .addOnCheckbox
     flex-shrink: 0
 
-.modalFooter
-    padding: 24px 40px 32px
-    border-top: 1px solid $n6
-    background: $n7
+.summaryCard
+    position: sticky
+    top: 16px
+    display: flex
+    flex-direction: column
+    gap: 16px
+
+.summaryScroll
+    overflow-y: auto
+    max-height: calc(85vh - 140px)
+    padding-right: 4px
     +t
-        padding: 20px 36px 28px
+        max-height: calc(90vh - 140px)
     +m
-        padding: 20px
-        border-top-width: 1px
+        max-height: none
+
+.summaryHeader
+    +body-2
+    color: $n4
     +dark
-        border-color: $n3
-        background: $n2
+        color: $n5
+
+.selectedNames
+    margin: 4px 0 8px
+    +body-2
+    color: $n4
+    +dark
+        color: $n5
+
+.selectedList
+    margin: 6px 0 10px
+    display: flex
+    flex-direction: column
+    gap: 6px
+
+.selectedItem
+    display: grid
+    grid-template-columns: 1fr max-content max-content
+    align-items: center
+    gap: 12px
+
+.selectedItemName
+    +body-2
+    color: $n2
+    +dark
+        color: $n8
+
+.selectedItemPrice
+    +body-2
+    color: $n2
+    text-align: left
+    +dark
+        color: $n8
+
+.removeBtn
+    appearance: none
+    border: none
+    background: transparent
+    color: $n4
+    cursor: pointer
+    padding: 2px 6px
+    border-radius: 6px
+    font-size: 16px
+    line-height: 1
+    transition: background .15s, color .15s
+    &:hover
+        background: $n7
+        color: $n2
+    +dark
+        color: $n5
+        &:hover
+            background: $n2
+            color: $n8
 
 .totalSummary
     margin-bottom: 24px
@@ -331,23 +423,20 @@
     +dark
         color: $n8
 
-.modalActions
-    display: flex
-    gap: 12px
-    +t
-        gap: 12px
+.actionButton
+    width: 100%
+    min-height: 48px
+    font-weight: 700
+    border-radius: 12px
     +m
-        gap: 12px
-        flex-direction: column
-    :global(.button),
-    :global(.button-stroke)
-        flex: 1
-        min-height: 48px
-        +m
-            width: 100%
-            min-height: 52px
-            padding: 0 24px
-            font-size: 16px
-            font-weight: 700
-            border-radius: 12px
+        min-height: 52px
+        font-size: 16px
+
+.skipButton
+    width: 100%
+    min-height: 48px
+    border-radius: 12px
+    +m
+        min-height: 52px
+        font-size: 16px
 

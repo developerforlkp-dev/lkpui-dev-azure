@@ -84,7 +84,7 @@ const CarsCheckoutComplete = () => {
           <div className={styles.col}>
             <CheckoutComplete
               className={styles.complete}
-              title="Spectacular views of Queenstown"
+              title="Spectacular views of Queensadastown"
               options={options}
               items={items}
             />

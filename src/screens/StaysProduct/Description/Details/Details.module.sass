@@ -2,6 +2,10 @@
 
 .title
     margin-bottom: 8px
+    +m
+        font-size: 24px
+        line-height: 1.3
+        margin-bottom: 12px
 
 .profile
     display: flex
@@ -9,6 +13,9 @@
     margin-bottom: 24px
     padding-bottom: 24px
     border-bottom: 1px solid $n6
+    +m
+        margin-bottom: 20px
+        padding-bottom: 20px
     +dark
         border-color: $n2
     span
@@ -48,56 +55,250 @@
     margin-bottom: 48px
     +body-2
     color: $n4
+    +m
+        margin-bottom: 32px
+        font-size: 15px
+        line-height: 1.6
     p
         &:not(:last-child)
             margin-bottom: 24px
+            +m
+                margin-bottom: 16px
+
+.facts
+    display: grid
+    grid-template-columns: repeat(3, 1fr)
+    gap: 12px
+    align-items: stretch
+    grid-auto-rows: 1fr
+    margin-bottom: 40px
+    +d
+        grid-template-columns: repeat(3, 1fr)
+    +t
+        grid-template-columns: repeat(3, 1fr)
+        gap: 10px
+    +m
+        grid-template-columns: repeat(2, 1fr)
+        gap: 8px
+        margin-bottom: 32px
+    +a
+        grid-template-columns: 1fr
+        gap: 8px
+    +s
+        grid-template-columns: 1fr
+        gap: 8px
+
+.fact
+    display: flex
+    align-items: center
+    padding: 16px
+    background: $n8
+    border: 1px solid $n6
+    border-radius: 16px
+    color: $n2
+    height: 100%
+    transition: border-color .2s, box-shadow .2s, transform .2s
+    +m
+        padding: 12px
+        border-radius: 12px
+    &:hover
+        border-color: $n5
+        box-shadow: 0 8px 16px -8px rgba(15, 15, 15, 0.12)
+    +dark
+        background: $n2
+        border-color: $n3
+        color: $n8
+
+.factIcon
+    margin-right: 12px
+    +m
+        margin-right: 10px
+    svg
+        fill: $n4
+        +m
+            width: 18px
+            height: 18px
+
+.factContent
+    display: flex
+    flex-direction: column
+
+.factHeading
+    +caption-2
+    color: $n4
+
+.factValue
+    +body-bold-2
+
+.enhanceSection
+    margin-bottom: 40px
+    +m
+        margin-bottom: 32px
+
+.enhanceTitle
+    +body-bold-1
+    margin-bottom: 20px
+    +m
+        font-size: 20px
+        margin-bottom: 16px
+
+.addOnsList
+    display: flex
+    flex-direction: column
+    gap: 12px
+    +m
+        gap: 10px
+
+.addOnCard
+    display: flex
+    align-items: flex-start
+    justify-content: space-between
+    padding: 16px
+    background: $n8
+    border: 1px solid $n6
+    border-radius: 12px
+    transition: all .2s
+    +dark
+        background: $n2
+        border-color: $n3
+    &:hover
+        border-color: $n5
+        box-shadow: 0 2px 8px -2px rgba(15, 15, 15, 0.06)
+    +m
+        padding: 14px 12px
+        flex-direction: column
+        gap: 12px
+
+.addOnCardSelected
+    border-color: $p1
+    background: rgba($p1, 0.04)
+    +dark
+        background: rgba($p1, 0.08)
+        border-color: $p1
+
+.addOnContent
+    flex: 1
+    min-width: 0
+    +m
+        width: 100%
+
+.addOnHeader
+    display: flex
+    align-items: flex-start
+    justify-content: space-between
+    margin-bottom: 8px
+    gap: 12px
+    +m
+        flex-direction: column
+        gap: 6px
+
+.addOnTitleRow
+    display: flex
+    align-items: center
+    gap: 8px
+    flex-wrap: wrap
+    flex: 1
+    min-width: 0
+
+.addOnTitle
+    +body-bold-2
+    color: $n2
+    margin: 0
+    font-size: 14px
+    line-height: 1.4
+    +dark
+        color: $n8
+
+.popularBadge
+    display: inline-flex
+    align-items: center
+    padding: 2px 8px
+    background: $p1
+    color: $n8
+    border-radius: 8px
+    +caption-2
+    font-weight: 600
+    white-space: nowrap
+    flex-shrink: 0
+    font-size: 10px
+
+.addOnPrice
+    +body-bold-2
+    color: $n2
+    white-space: nowrap
+    flex-shrink: 0
+    font-size: 14px
+    +dark
+        color: $n8
+
+.addOnDescription
+    +body-2
+    color: $n4
+    line-height: 1.5
+    margin: 0
+    font-size: 13px
+    display: -webkit-box
+    -webkit-line-clamp: 2
+    -webkit-box-orient: vertical
+    overflow: hidden
+    text-overflow: ellipsis
+
+.addOnSwitch
+    flex-shrink: 0
+    margin-left: 16px
+    +m
+        margin-left: 0
+        align-self: flex-end
         
 .info
     margin-bottom: 32px
     +body-bold-1
+    +m
+        font-size: 20px
+        margin-bottom: 24px
+
+.optionsWrapper
+    position: relative
+    width: calc(100% + 48px)
+    margin-left: 0
+    +t
+        width: 100%
+        margin-left: 0
 
 .options
     position: relative
-    display: flex
-    flex-wrap: wrap
-    margin: -24px 0 48px
+    display: grid
+    grid-template-columns: repeat(3, 1fr)
+    gap: 24px 32px
+    margin-bottom: 48px
+    max-width: 100%
+    +d
+        gap: 24px 28px
+    +t
+        grid-template-columns: repeat(2, 1fr)
+        gap: 20px 24px
     +m
-        display: block
-        margin-top: 0
-    &:before
-        content: ""
-        position: absolute
-        top: 24px
-        left: 44%
-        bottom: 0
-        width: 1px
-        background: $n6
-        +dark
-            background: $n2
-        +m
-            display: none
+        grid-template-columns: 1fr
+        gap: 16px
+        margin-bottom: 32px
+    &:before,
+    &:after
+        display: none
 
 .option
     display: flex
-    margin-top: 24px
+    align-items: center
     color: $n4
+    +m
+        font-size: 14px
     svg
         margin-right: 16px
         fill: $n4
-    &:nth-child(2n+1)
-        flex: 0 0 44%
-        padding-right: 40px
-        +x
-            padding-right: 24px
+        flex-shrink: 0
         +m
-            padding: 0
-    &:nth-child(2n)
-        flex: 0 0 56%
-        padding-left: 80px
-        +x
-            padding-left: 24px
-        +m
-            padding: 0
+            width: 20px
+            height: 20px
+            margin-right: 12px
         
 .button
     +dark

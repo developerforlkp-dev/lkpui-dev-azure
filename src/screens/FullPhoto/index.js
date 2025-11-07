@@ -42,7 +42,7 @@ const options = [
     icon: "home",
   },
   {
-    title: "Queenstown, Otago, New Zealand",
+    title: "Queenstsssown, Otago, New Zealand",
     icon: "flag",
   },
 ];

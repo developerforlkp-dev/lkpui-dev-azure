@@ -2,7 +2,7 @@
 
 .gallery
     +m
-        margin: 0 -24px 0 -16px
+        margin: 0 -16px
 
 .list
     display: grid
@@ -13,6 +13,8 @@
     grid-template-columns: repeat(4, 1fr)
     grid-template-rows: repeat(2, minmax(200px, 1fr))
     +m
+        margin-right: 0
+        grid-gap: 4px
         grid-template-columns: repeat(3,1fr)
         grid-template-rows: repeat(4,1fr)
     .preview
@@ -159,6 +161,8 @@
     overflow: hidden
     border-radius: 16px
     background: $n7
+    +m
+        border-radius: 8px
     +dark
         background: $n2
     img
@@ -166,6 +170,14 @@
         height: 100%
         object-fit: cover
         display: block
+        transition: transform 1s
+    &:hover
+        img
+            transform: scale(1.1)
+    &:active
+        +m
+            img
+                transform: scale(1.05)
     &:after
         content: ""
         position: absolute
@@ -217,6 +229,7 @@
 .view
     width: 100%
     height: 100%
+    overflow: hidden
 
 .morePhotos
     background: $n2

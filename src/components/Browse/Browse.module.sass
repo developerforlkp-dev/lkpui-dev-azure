@@ -20,7 +20,122 @@
 .info
     margin-top: 12px
 
-.wrapper
-    margin: 0 -16px
+.scrollContainer
+    position: relative
+    width: 100%
+
+.scrollWrapper
+    display: flex
+    gap: 16px
+    overflow-x: auto
+    overflow-y: hidden
+    scroll-behavior: smooth
+    scroll-snap-type: x mandatory
+    scroll-padding: 0
+    -webkit-overflow-scrolling: touch
+    scrollbar-width: none
+    -ms-overflow-style: none
+    padding: 0
+    margin: 0
+    cursor: grab
+    user-select: none
+    &:active
+        cursor: grabbing
+    &::-webkit-scrollbar
+        display: none
     +m
-        margin: 0 -8px
+        gap: 12px
+        cursor: default
+        &:active
+            cursor: default
+
+.item
+    flex: 0 0 calc(25% - 12px)
+    min-width: calc(25% - 12px)
+    scroll-snap-align: start
+    scroll-snap-stop: always
+    +d
+        flex: 0 0 calc(33.333% - 11px)
+        min-width: calc(33.333% - 11px)
+    +t
+        flex: 0 0 calc(33.333% - 11px)
+        min-width: calc(33.333% - 11px)
+    +m
+        flex: 0 0 calc(50% - 6px)
+        min-width: calc(50% - 6px)
+
+.arrowButton
+    position: absolute
+    top: 50%
+    transform: translateY(-50%)
+    width: 48px
+    height: 48px
+    border-radius: 50%
+    background: rgba($n8, 0.85)
+    backdrop-filter: blur(12px)
+    border: none
+    display: flex
+    align-items: center
+    justify-content: center
+    cursor: pointer
+    z-index: 3
+    opacity: 0
+    visibility: hidden
+    transition: all .3s ease
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1)
+    +t
+        width: 44px
+        height: 44px
+    +m
+        opacity: 1
+        visibility: visible
+        width: 40px
+        height: 40px
+        background: rgba($n8, 0.9)
+        backdrop-filter: blur(8px)
+    +dark
+        background: rgba($n1, 0.85)
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3)
+        +m
+            background: rgba($n1, 0.9)
+    svg
+        fill: $n2
+        transition: fill .2s
+        +dark
+            fill: $n8
+    &:hover
+        opacity: 1 !important
+        visibility: visible !important
+        background: rgba($n8, 0.95)
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15), 0 0 0 4px rgba($p1, 0.1)
+        transform: translateY(-50%) scale(1.05)
+        +dark
+            background: rgba($n1, 0.95)
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4), 0 0 0 4px rgba($p1, 0.2)
+        svg
+            fill: $p1
+            +dark
+                fill: $p1
+    &:active
+        transform: translateY(-50%) scale(0.98)
+
+.arrowVisible
+    opacity: 1
+    visibility: visible
+    +m
+        opacity: 1
+        visibility: visible
+
+.arrowLeft
+    left: 16px
+    +t
+        left: 12px
+    +m
+        left: 8px
+
+.arrowRight
+    right: 16px
+    +t
+        right: 12px
+    +m
+        right: 8px

@@ -80,7 +80,7 @@ const Upload = () => {
                         label="Title"
                         name="title"
                         type="text"
-                        placeholder='e. g. "Spectacular views of Queenstown"'
+                        placeholder='e. g. "Spectacular vadiews of Queenstown"'
                         required
                       />
                       <div className={styles.row}>

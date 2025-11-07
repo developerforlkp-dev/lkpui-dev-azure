@@ -13,9 +13,50 @@ const DateSingle = ({
   displayFormat,
   small,
   bodyDown,
+  date: controlledDate,
+  onDateChange,
+  id,
+  plain,
 }) => {
-  const [date, setDate] = useState(null);
+  const [internalDate, setInternalDate] = useState(null);
   const [focused, setFocused] = useState(false);
+  
+  // Use controlled date if provided, otherwise use internal state
+  const date = controlledDate !== undefined ? controlledDate : internalDate;
+  const handleDateChange = (newDate) => {
+    if (onDateChange) {
+      onDateChange(newDate);
+    } else {
+      setInternalDate(newDate);
+    }
+  };
+
+  if (plain) {
+    return (
+      <div
+        className={cn(
+          className,
+          { small: small },
+          { bodyDown: bodyDown },
+          { [styles.small]: small },
+          styles.date
+        )}
+      >
+        <SingleDatePicker
+          placeholder={placeholder}
+          date={date}
+          onDateChange={handleDateChange}
+          focused={focused}
+          onFocusChange={({ focused }) => setFocused(focused)}
+          id={id || "date-single"}
+          displayFormat={displayFormat}
+          readOnly
+          noBorder
+          numberOfMonths={1}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -39,10 +80,10 @@ const DateSingle = ({
         <SingleDatePicker
           placeholder={placeholder}
           date={date}
-          onDateChange={(date) => setDate(date)}
+          onDateChange={handleDateChange}
           focused={focused}
           onFocusChange={({ focused }) => setFocused(focused)}
-          id="date-single"
+          id={id || "date-single"}
           displayFormat={displayFormat}
           readOnly
           noBorder

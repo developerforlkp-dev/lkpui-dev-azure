@@ -1,54 +1,127 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import { useHistory } from "react-router-dom";
+import moment from "moment";
 import cn from "classnames";
 import styles from "./Description.module.sass";
 import Icon from "../../../components/Icon";
-import Details from "./Details";
+import Details, { addOns } from "./Details";
 import Receipt from "../../../components/Receipt";
-import AddOnsModal from "../../../components/AddOnsModal";
+import DateTimeModal from "../../../components/DateTimeModal";
 
-const items = [
-  {
-    title: "May 15, 2021",
-    category: "Check-in",
-    icon: "calendar",
-  },
-  {
-    title: "May 22, 2021",
-    category: "Check-out",
-    icon: "calendar",
-  },
-  {
-    title: "2 guests",
-    category: "Guest",
-    icon: "user",
-  },
-];
-
-const receipt = [
-  {
-    title: "$119 x 7 nights",
-    content: "$833",
-  },
-  {
-    title: "10% campaign discount",
-    content: "-$125",
-  },
-  {
-    title: "Service fee",
-    content: "$103",
-  },
-  {
-    title: "Total",
-    content: "$833",
-  },
-];
+const basePrice = 833;
+const discount = 125;
+const serviceFee = 103;
 
 const Description = ({ classSection }) => {
-  const [showAddOnsModal, setShowAddOnsModal] = useState(false);
+  const history = useHistory();
+  const [selectedAddOns, setSelectedAddOns] = useState([]);
+  // default values
+  const defaultDate = new Date();
+  const formattedDefaultDate = defaultDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+  const timeSlots = ["09:00 AM", "11:00 AM", "02:00 PM", "04:00 PM"];
+  const [selectedDate, setSelectedDate] = useState(moment(defaultDate));
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(timeSlots[0]);
+
+  const items = [
+    {
+      title: selectedDate ? selectedDate.format("MMM DD, YYYY") : formattedDefaultDate,
+      category: "Select date",
+      icon: "calendar",
+    },
+    {
+      title: selectedTimeSlot,
+      category: "Time slot",
+      icon: "clock",
+    },
+    {
+      title: "2 guests",
+      category: "Guest",
+      icon: "user",
+    },
+  ];
+
+  const [showDateTimeModal, setShowDateTimeModal] = useState(false);
+
+  const handleToggleAddOn = (addOnId) => {
+    setSelectedAddOns((prev) =>
+      prev.includes(addOnId)
+        ? prev.filter((id) => id !== addOnId)
+        : [...prev, addOnId]
+    );
+  };
+
+  const { addOnsTotal, finalTotal, receipt } = useMemo(() => {
+    const addOnsPrice = selectedAddOns.reduce((sum, id) => {
+      const addOn = addOns.find((a) => a.id === id);
+      return sum + (addOn?.priceValue || 0);
+    }, 0);
+    
+    const total = basePrice - discount + serviceFee + addOnsPrice;
+    
+    const receiptData = [
+      {
+        title: "$119 x 7 nights",
+        content: `$${basePrice}`,
+      },
+      {
+        title: "10% campaign discount",
+        content: `-$${discount}`,
+      },
+    ];
+
+    if (addOnsPrice > 0) {
+      receiptData.push({
+        title: `Add-ons (${selectedAddOns.length})`,
+        content: `+$${addOnsPrice}`,
+      });
+    }
+
+    receiptData.push(
+      {
+        title: "Service fee",
+        content: `$${serviceFee}`,
+      },
+      {
+        title: "Total",
+        content: `$${total}`,
+      }
+    );
+
+    return {
+      addOnsTotal: addOnsPrice,
+      finalTotal: total,
+      receipt: receiptData,
+    };
+  }, [selectedAddOns]);
 
   const handleReserveClick = (e) => {
     e.preventDefault();
-    setShowAddOnsModal(true);
+    const selectedAddOnsData = selectedAddOns
+      .map((id) => addOns.find((a) => a.id === id))
+      .filter(Boolean);
+    
+    history.push({
+      pathname: "/stays-checkout",
+      state: { addOns: selectedAddOnsData },
+    });
+  };
+
+  const handleOpenDateTime = (index) => {
+    // Open modal for both date and time selections
+    if (index === 0 || index === 1) {
+      setShowDateTimeModal(true);
+    }
+  };
+
+  const handleConfirmDateTime = (dateText, timeText) => {
+    if (dateText) {
+      setSelectedDate(moment(new Date(dateText)));
+    }
+    setSelectedTimeSlot(timeText);
   };
 
   return (
@@ -56,13 +129,18 @@ const Description = ({ classSection }) => {
       <div className={cn(classSection, styles.section)}>
         <div className={cn("container", styles.container)}>
           <div className={styles.wrapper}>
-            <Details className={styles.details} />
+            <Details 
+              className={styles.details}
+              selectedAddOns={selectedAddOns}
+              onToggleAddOn={handleToggleAddOn}
+            />
             <Receipt
               className={styles.receipt}
               items={items}
               priceOld="$119"
               priceActual="$109"
               time="night"
+              onItemClick={handleOpenDateTime}
             >
               <div className={styles.btns}>
                 <button className={cn("button-stroke", styles.button)}>
@@ -95,10 +173,12 @@ const Description = ({ classSection }) => {
           </div>
         </div>
       </div>
-      <AddOnsModal
-        visible={showAddOnsModal}
-        onClose={() => setShowAddOnsModal(false)}
-        basePrice={833}
+      <DateTimeModal
+        visible={showDateTimeModal}
+        onClose={() => setShowDateTimeModal(false)}
+        onConfirm={handleConfirmDateTime}
+        selectedDate={selectedDate ? selectedDate.toDate().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }) : formattedDefaultDate}
+        selectedTime={selectedTimeSlot}
       />
     </>
   );

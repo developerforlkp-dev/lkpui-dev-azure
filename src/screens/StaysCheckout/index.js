@@ -55,7 +55,7 @@ const Checkout = () => {
 
   const { addOnsTotal, finalTotal, table } = useMemo(() => {
     const addOnsPrice = selectedAddOns.reduce(
-      (sum, addOn) => sum + (addOn?.price || 0),
+      (sum, addOn) => sum + (addOn?.priceValue || addOn?.price || 0),
       0
     );
     const final = basePrice - discount + serviceFee + addOnsPrice;
@@ -71,6 +71,7 @@ const Checkout = () => {
       },
     ];
 
+    // Add addon summary to the table
     if (selectedAddOns.length > 0) {
       tableData.push({
         title: "Add-ons",

@@ -1,0 +1,175 @@
+@import ../../styles/helpers
+
+.modalOuter
+    max-width: 880px
+    & > div
+        padding: 0
+
+.container
+    background: $n8
+    border-radius: 16px
+    overflow: hidden
+    +dark
+        background: $n1
+
+.header
+    padding: 24px 24px 16px
+    border-bottom: 1px solid $n6
+    +dark
+        border-color: $n3
+
+.title
+    +body-bold-1
+
+.subtitle
+    margin-top: 6px
+    +body-2
+    color: $n4
+    +dark
+        color: $n5
+
+.section
+    padding: 20px 24px
+
+.sectionTitle
+    +body-bold-2
+    margin-bottom: 12px
+
+.monthRow
+    margin-bottom: 12px
+
+.dateScroll
+    position: relative
+    width: 100%
+
+.dateRow
+    display: flex
+    gap: 12px
+    overflow-x: auto
+    overflow-y: hidden
+    scroll-behavior: smooth
+    -webkit-overflow-scrolling: touch
+    scrollbar-width: none
+    &::-webkit-scrollbar
+        display: none
+    padding-bottom: 6px
+
+.dateCard
+    display: flex
+    flex-direction: column
+    gap: 6px
+    padding: 14px
+    border: 1px solid $n6
+    border-radius: 12px
+    background: $n8
+    text-align: left
+    cursor: pointer
+    min-width: 160px
+    max-width: 160px
+    transition: all .2s ease
+    +dark
+        background: $n1
+        border-color: $n3
+    &:hover:not(.disabled):not(.active)
+        border-color: $p1
+        background: $n7
+        box-shadow: 0 2px 8px rgba($p1, .15)
+        transform: translateY(-2px)
+        +dark
+            background: $n2
+    &.active
+        border-color: $p1
+        background: $p1
+        box-shadow: 0 0 0 2px rgba($p1, .1)
+        .day, .date, .slots
+            color: $n8
+    &.disabled
+        cursor: not-allowed
+        opacity: .5
+        &:hover
+            border-color: $n6
+            transform: none
+            box-shadow: none
+
+.day
+    +caption-2
+    color: $n4
+.date
+    +body-bold-2
+.slots
+    +caption-2
+    color: $n4
+
+.timesGrid
+    display: grid
+    grid-template-columns: repeat(3, 1fr)
+    gap: 12px
+    +t
+        grid-template-columns: repeat(2, 1fr)
+    +m
+        grid-template-columns: repeat(2, 1fr)
+
+.timeBtn
+    padding: 14px 12px
+    border: 1px solid $n6
+    border-radius: 12px
+    background: $n8
+    cursor: pointer
+    transition: all .2s ease
+    +dark
+        background: $n1
+        border-color: $n3
+    &:hover:not(.active)
+        border-color: $p1
+        background: $n7
+        box-shadow: 0 2px 8px rgba($p1, .15)
+        transform: translateY(-2px)
+        +dark
+            background: $n2
+    &.active
+        border-color: $p1
+        background: $p1
+        color: $n8
+        box-shadow: 0 0 0 2px rgba($p1, .1)
+
+.footer
+    display: flex
+    gap: 12px
+    padding: 16px 24px 24px
+    border-top: 1px solid $n6
+    +dark
+        border-color: $n3
+
+.btn
+    flex: 1
+
+.arrowButton
+    position: absolute
+    top: 50%
+    transform: translateY(-50%)
+    width: 36px
+    height: 36px
+    border-radius: 50%
+    background: rgba($n8, 0.9)
+    border: none
+    box-shadow: 0 4px 16px rgba(0,0,0,.1)
+    display: flex
+    align-items: center
+    justify-content: center
+    cursor: pointer
+    opacity: 0
+    visibility: hidden
+    transition: all .2s ease
+    +dark
+        background: rgba($n1, 0.9)
+
+.arrowVisible
+    opacity: 1
+    visibility: visible
+
+.arrowLeft
+    left: 8px
+
+.arrowRight
+    right: 8px
+

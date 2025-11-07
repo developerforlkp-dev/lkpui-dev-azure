@@ -22,18 +22,43 @@
 
 .receipt
     flex-shrink: 0
+    position: sticky
+    top: 24px
+    align-self: flex-start
+    max-height: calc(100vh - 48px)
+    overflow-y: auto
+    +t
+        position: relative
+        top: 0
+        max-height: none
     +m
         margin: 0 -16px
+        position: sticky
+        top: 0
+        z-index: 10
+        background: $n8
+        +dark
+            background: $n2
 
 .btns
     display: flex
     margin-bottom: 32px
+    +m
+        margin-bottom: 24px
+        flex-direction: column
+        gap: 12px
     .button
         &:first-child
             flex-shrink: 0
             margin-right: 8px
+            +m
+                margin-right: 0
+                width: 100%
         &:nth-child(2)
             flex-grow: 1
+            +m
+                flex-grow: 0
+                width: 100%
 
 .table
     margin-bottom: 32px
@@ -80,3 +105,96 @@
         color: $p1
         svg
             fill: $p1
+
+.datePickerItem
+    display: flex
+    align-items: center
+    padding: 12px
+    position: relative
+    cursor: pointer
+    transition: background-color .2s ease
+    &:hover
+        background: $n6
+        border-radius: 12px
+        +dark
+            background: $n4
+
+.icon
+    display: flex
+    justify-content: center
+    align-items: center
+    width: 32px
+    height: 32px
+    margin-right: 12px
+    flex-shrink: 0
+    svg
+        fill: $n5
+
+.box
+    flex: 1
+    min-width: 0
+
+.category
+    +caption-2
+    color: $n4
+
+.subtitle
+    +body-bold-2
+
+.datePicker
+    position: absolute
+    top: 0
+    left: 0
+    width: 100%
+    height: 100%
+    z-index: 2
+    .SingleDatePicker
+        width: 100%
+        height: 100%
+    .head
+        width: 100%
+        height: 100%
+    .box
+        display: none
+    .icon
+        display: none
+    .description
+        display: none
+    .DateInput
+        width: 100%
+        height: 100%
+    .DateInput_input
+        width: 100%
+        height: 100%
+        padding: 0 !important
+        border: none !important
+        background: transparent !important
+        cursor: pointer
+        opacity: 0 !important
+        color: transparent !important
+        text-indent: -9999px !important
+        caret-color: transparent !important
+        &::placeholder
+            color: transparent !important
+        &.DateInput_input__focused
+            opacity: 0 !important
+            background: transparent !important
+            box-shadow: none !important
+
+    // Also hide react-dates display text element used when input isn't focused
+    .DateInput_displayText,
+    .DateInput_displayText__hasInput
+        width: 1px !important
+        height: 1px !important
+        padding: 0 !important
+        margin: 0 !important
+        border: none !important
+        background: transparent !important
+        color: transparent !important
+        opacity: 0 !important
+        text-indent: -9999px !important
+        overflow: hidden !important
+        position: absolute !important
+        left: -9999px !important
+        top: auto !important
+        pointer-events: none !important
