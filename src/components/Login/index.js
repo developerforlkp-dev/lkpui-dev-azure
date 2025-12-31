@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import cn from "classnames";
+import { GoogleLogin } from '@react-oauth/google';
 import styles from "./Login.module.sass";
 import Icon from "../Icon";
-import { sendPhoneOTP, verifyPhoneOTP } from "../../utils/api";
+import { sendPhoneOTP, verifyPhoneOTP, loginWithGoogle } from "../../utils/api";
 
 const Login = ({ onClose }) => {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -71,9 +72,69 @@ const Login = ({ onClose }) => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    // Redirect to Google OAuth
-    window.location.href = "/auth/google";
+  // Handle Google login success
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      setError("");
+      
+      console.log("🔵 Google OAuth credential received:", {
+        credential: credentialResponse.credential ? `${credentialResponse.credential.substring(0, 20)}...` : "null",
+        select_by: credentialResponse.select_by
+      });
+      
+      const response = await loginWithGoogle(credentialResponse.credential);
+      
+      // Store JWT token from response
+      const token = response?.token;
+      if (token) {
+        localStorage.setItem("jwtToken", token);
+        console.log("✅ JWT token stored in localStorage");
+      } else {
+        console.warn("⚠️ No JWT token found in response:", response);
+      }
+      
+      // Extract customer data from response
+      const customer = response?.customer || {};
+      
+      // Store user info: firstName, lastName, email
+      const userInfo = {
+        firstName: customer?.firstName || "",
+        lastName: customer?.lastName || "",
+        email: customer?.email || "",
+        customerId: customer?.customerId,
+        loginMethod: 'google'
+      };
+      localStorage.setItem("userInfo", JSON.stringify(userInfo));
+      console.log("✅ User info stored in localStorage:", userInfo);
+      
+      // Also store individual values for easy access
+      if (customer?.firstName) {
+        localStorage.setItem("firstName", customer.firstName);
+      }
+      if (customer?.lastName) {
+        localStorage.setItem("lastName", customer.lastName);
+      }
+      if (customer?.email) {
+        localStorage.setItem("email", customer.email);
+      }
+      
+      // Close modal and reload to update header
+      if (onClose) {
+        onClose();
+      }
+      window.location.reload();
+    } catch (err) {
+      console.error("Google login error:", err);
+      setError(err.response?.data?.message || err.message || "Google login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Google login error
+  const handleGoogleError = () => {
+    setError("Google login failed. Please try again.");
   };
 
   // Send OTP when phone number is submitted
@@ -178,14 +239,30 @@ const Login = ({ onClose }) => {
           <div className={cn("h3", styles.title)}>Sign up on Fleet</div>
           <div className={styles.info}>Use Your OpenID to Sign up</div>
           <div className={styles.btns}>
-            <button 
-              type="button"
-              className={cn("button", styles.button)}
-              onClick={handleGoogleLogin}
-            >
-              <Icon name="google" size="16" />
-              <span>Google</span>
-            </button>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              useOneTap={false}
+              theme="outline"
+              size="large"
+              text="signin_with"
+              shape="rectangular"
+              logo_alignment="left"
+              width="100%"
+              locale="en"
+              render={({ onClick, disabled }) => (
+                <button 
+                  type="button"
+                  className={cn("button", styles.button)}
+                  onClick={onClick}
+                  disabled={disabled || loading}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  <Icon name="google" size="16" />
+                  <span>Google</span>
+                </button>
+              )}
+            />
             <button type="button" className={cn("button-black", styles.button)}>
               <Icon name="apple" size="16" />
               <span>Apple</span>

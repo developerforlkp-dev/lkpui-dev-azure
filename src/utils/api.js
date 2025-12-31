@@ -26,6 +26,16 @@ export const ListingsAPI = axios.create({
 ListingsAPI.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("jwtToken");
+    const fullURL = `${config.baseURL}${config.url}`;
+    
+    console.log("🌐 Axios Request Interceptor:");
+    console.log("  - Method:", config.method?.toUpperCase());
+    console.log("  - Base URL:", config.baseURL);
+    console.log("  - URL:", config.url);
+    console.log("  - Full URL:", fullURL);
+    console.log("  - Data:", config.data);
+    console.log("  - Headers:", config.headers);
+    
     if (token) {
       // Ensure headers object exists
       config.headers = config.headers || {};
@@ -237,6 +247,41 @@ export const verifyPhoneOTP = async (phone, otp, countryCode = "+91", firstName 
     return response.data;
   } catch (error) {
     console.error("❌ Error verifying OTP:", error);
+    throw error;
+  }
+};
+
+// ✅ Google OAuth login
+export const loginWithGoogle = async (idToken) => {
+  try {
+    const url = "/customers/auth/google";
+    const requestData = { idToken: idToken };
+    const baseURL = getApiBaseURL();
+    const fullURL = baseURL === "/api" 
+      ? `${window.location.origin}${baseURL}${url}` 
+      : `${baseURL}${url}`;
+    
+    console.log("📤 Making Google login request:");
+    console.log("  - Base URL:", baseURL);
+    console.log("  - Endpoint:", url);
+    console.log("  - Full URL:", fullURL);
+    console.log("  - Request data:", { idToken: idToken ? `${idToken.substring(0, 20)}...` : "null" });
+    console.log("  - Check Network tab for: POST", fullURL);
+    
+    const response = await ListingsAPI.post(url, requestData);
+    
+    console.log("✅ Google login successful:");
+    console.log("  - Status:", response.status);
+    console.log("  - Response data:", response.data);
+    console.log("  - Full response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error with Google login:");
+    console.error("  - Error message:", error.message);
+    console.error("  - Status:", error.response?.status);
+    console.error("  - Response data:", error.response?.data);
+    console.error("  - Full error:", error);
+    console.error("  - Check Network tab for failed request");
     throw error;
   }
 };

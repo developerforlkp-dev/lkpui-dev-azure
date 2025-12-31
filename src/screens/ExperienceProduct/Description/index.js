@@ -12,7 +12,7 @@ import InlineDatePicker from "../../../components/InlineDatePicker";
 import TimeSlotsPicker from "../../../components/TimeSlotsPicker";
 import GuestPicker from "../../../components/GuestPicker";
 import LoginModal from "../../../components/LoginModal";
-import { getBillingConfiguration, getAvailability, createOrder, getListingSlots } from "../../../utils/api";
+import { getBillingConfiguration, getAvailability, createOrder, getListingSlots, loginWithGoogle } from "../../../utils/api";
 
 const basePrice = 833;
 const discount = 125;
@@ -843,46 +843,59 @@ const Description = ({ classSection, listing, hostData }) => {
         throw new Error("No credential received from Google");
       }
 
-      // Call API with idToken
-      const apiResponse = await axios.post("/api/customers/auth/google", {
-        idToken: response.credential,
-      });
+      // Call API with idToken using the centralized API function
+      const apiResponse = await loginWithGoogle(response.credential);
 
       // Save JWT token to localStorage
-      if (apiResponse.data?.token || apiResponse.data?.jwtToken || apiResponse.data?.accessToken) {
-        const token = apiResponse.data.token || apiResponse.data.jwtToken || apiResponse.data.accessToken;
-        localStorage.setItem("jwtToken", token);
-        
-        // Store user info from Google response
-        const userInfo = {
-          email: apiResponse.data?.email || apiResponse.data?.user?.email || "",
-          name: apiResponse.data?.name || apiResponse.data?.user?.name || "",
-          firstName: apiResponse.data?.firstName || apiResponse.data?.user?.firstName || "",
-          lastName: apiResponse.data?.lastName || apiResponse.data?.user?.lastName || "",
-          ...(apiResponse.data?.user || {})
-        };
-        localStorage.setItem("userInfo", JSON.stringify(userInfo));
-        console.log("✅ User info stored from Google login:", userInfo);
-        
-        // Close modal
-        setShowLoginModal(false);
-        
-        // Check if we have pending booking data and create order
-        const savedBooking = localStorage.getItem("pendingBooking");
-        if (savedBooking) {
-          // Create order after login
-          try {
-            await createOrderFromPendingBooking();
-          } catch (error) {
-            console.error("Error creating order after Google login:", error);
-            alert(error.response?.data?.message || error.message || "Failed to create order. Please try again.");
-          }
-        } else {
-          // Fallback to current state if no saved data
-          proceedToCheckout();
+      const token = apiResponse?.token;
+      if (!token) {
+        throw new Error("No token received from API");
+      }
+
+      localStorage.setItem("jwtToken", token);
+      console.log("✅ JWT token stored in localStorage");
+      
+      // Extract customer data from response
+      const customer = apiResponse?.customer || {};
+      
+      // Store user info: firstName, lastName, email
+      const userInfo = {
+        firstName: customer?.firstName || "",
+        lastName: customer?.lastName || "",
+        email: customer?.email || "",
+        customerId: customer?.customerId,
+        loginMethod: 'google'
+      };
+      localStorage.setItem("userInfo", JSON.stringify(userInfo));
+      console.log("✅ User info stored from Google login:", userInfo);
+      
+      // Also store individual values for easy access
+      if (customer?.firstName) {
+        localStorage.setItem("firstName", customer.firstName);
+      }
+      if (customer?.lastName) {
+        localStorage.setItem("lastName", customer.lastName);
+      }
+      if (customer?.email) {
+        localStorage.setItem("email", customer.email);
+      }
+      
+      // Close modal
+      setShowLoginModal(false);
+      
+      // Check if we have pending booking data and create order
+      const savedBooking = localStorage.getItem("pendingBooking");
+      if (savedBooking) {
+        // Create order after login
+        try {
+          await createOrderFromPendingBooking();
+        } catch (error) {
+          console.error("Error creating order after Google login:", error);
+          alert(error.response?.data?.message || error.message || "Failed to create order. Please try again.");
         }
       } else {
-        throw new Error("No token received from API");
+        // Fallback to current state if no saved data
+        proceedToCheckout();
       }
     } catch (error) {
       console.error("Google login error:", error);

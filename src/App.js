@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import "react-dates/lib/css/_datepicker.css";
 import "./styles/app.sass";
 import Page from "./components/Page";
@@ -36,9 +37,12 @@ import Listings from "./pages/listings";
 import EventProduct from "./screens/EventProduct";
 
 function App() {
+  const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+
   return (
-    <Router>
-      <Switch>
+    <GoogleOAuthProvider clientId={googleClientId || ""}>
+      <Router>
+        <Switch>
         <Route
           exact
           path="/"
@@ -321,6 +325,7 @@ function App() {
         />
       </Switch>
     </Router>
+    </GoogleOAuthProvider>
   );
 }
 

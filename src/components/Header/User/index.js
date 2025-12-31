@@ -8,6 +8,24 @@ import Icon from "../../Icon";
 const User = ({ className, items }) => {
   const [visible, setVisible] = useState(false);
 
+  // Logout function that clears all user data and redirects to landing page
+  const handleLogout = (e) => {
+    e.preventDefault();
+    
+    // Clear all authentication-related data from localStorage
+    localStorage.removeItem("jwtToken");
+    localStorage.removeItem("userInfo");
+    localStorage.removeItem("firstName");
+    localStorage.removeItem("lastName");
+    localStorage.removeItem("email");
+    
+    // Close the menu
+    setVisible(false);
+    
+    // Redirect to landing page (home) and reload to update the header state
+    window.location.href = "/";
+  };
+
   return (
     <OutsideClickHandler onOutsideClick={() => setVisible(false)}>
       <div className={cn(styles.user, className, { [styles.active]: visible })}>
@@ -46,16 +64,7 @@ const User = ({ className, items }) => {
             </NavLink>
             <button 
               className={cn("button-stroke button-small", styles.button)}
-              onClick={(e) => {
-                e.preventDefault();
-                // Clear authentication data
-                localStorage.removeItem("jwtToken");
-                localStorage.removeItem("userInfo");
-                // Close the menu
-                setVisible(false);
-                // Reload the page to update the header
-                window.location.reload();
-              }}
+              onClick={handleLogout}
             >
               Log out
             </button>

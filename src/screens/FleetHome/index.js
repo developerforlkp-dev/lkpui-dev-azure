@@ -12,7 +12,7 @@ import HeroSection from "./HeroSection";
 const filterOptions = [
   { id: "experience", label: "Experience", icon: "star" },
   { id: "events", label: "Events", icon: "calendar" },
-  { id: "experience", label: "Experience", icon: "home" },
+  { id: "stays", label: "Stays", icon: "home" },
   { id: "food", label: "Food", icon: "burger" },
   { id: "places", label: "Places", icon: "marker" },
 ];
@@ -132,7 +132,17 @@ const FleetHome = () => {
         
       } catch (err) {
         console.error("❌ Error loading homepage data:", err);
-        setError(err.message || "Failed to load homepage data");
+        // Check if it's a connection/network error
+        const isConnectionError = err.message?.includes("proxy") || 
+                                  err.message?.includes("ECONNREFUSED") ||
+                                  err.message?.includes("504") ||
+                                  err.code === "ECONNREFUSED";
+        
+        if (isConnectionError) {
+          setError("Backend server is not running. Please start the backend server on port 5000.");
+        } else {
+          setError(err.message || "Failed to load homepage data");
+        }
       } finally {
         setLoading(false);
       }
