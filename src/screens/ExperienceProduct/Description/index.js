@@ -74,7 +74,10 @@ const Description = ({ classSection, listing, hostData }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [guests, setGuests] = useState({
-    guests: 1,
+    adults: 1,
+    children: 0,
+    infants: 0,
+    pets: 0,
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimeSlots, setShowTimeSlots] = useState(false);
@@ -1566,11 +1569,29 @@ const Description = ({ classSection, listing, hostData }) => {
       const currentTotal = getGuestCount(guests);
       if (currentTotal > maxSeats) {
         // Adjust guests to not exceed available seats
-        setGuests({ guests: Math.max(1, maxSeats) });
+        // We reduce children first, then adults
+        const newGuests = { ...guests };
+        if (newGuests.children > 0) {
+          const overage = currentTotal - maxSeats;
+          newGuests.children = Math.max(0, newGuests.children - overage);
+          const newTotal = (newGuests.adults || 0) + (newGuests.children || 0);
+          if (newTotal > maxSeats) {
+            newGuests.adults = maxSeats;
+          }
+        } else {
+          newGuests.adults = maxSeats;
+        }
+
+        // Also check if infants still fit (infants <= adults)
+        if (newGuests.infants > newGuests.adults) {
+          newGuests.infants = newGuests.adults;
+        }
+
+        setGuests(newGuests);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [maxSeats, selectedDateAvailability]);
+  }, [maxSeats, selectedDateAvailability, guests]);
 
   return (
     <>
@@ -1681,16 +1702,9 @@ const Description = ({ classSection, listing, hostData }) => {
                         visible={showGuestPicker}
                         onClose={() => setShowGuestPicker(false)}
                         onGuestChange={(guestData) => {
-                          // Convert from { adults, children, ... } to { guests }
-                          const totalGuests = (guestData.adults || 0) + (guestData.children || 0);
-                          setGuests({ guests: totalGuests });
+                          setGuests(guestData);
                         }}
-                        initialGuests={{
-                          adults: getGuestCount(guests),
-                          children: 0,
-                          infants: 0,
-                          pets: 0,
-                        }}
+                        initialGuests={guests}
                         maxGuests={listing?.maxGuests || undefined}
                         maxSeats={maxSeats}
                         allowPets={listing?.allowPets || false}

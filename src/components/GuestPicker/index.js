@@ -28,6 +28,40 @@ const GuestPicker = ({
   // Use maxSeats if provided, otherwise fall back to maxGuests, or undefined (no limit)
   const maxAllowed = maxSeats !== undefined ? maxSeats : (maxGuests !== undefined ? maxGuests : undefined);
 
+  // Keep state in sync with initialGuests prop and enforce maxAllowed
+  React.useEffect(() => {
+    setGuests(prev => {
+      const target = { ...initialGuests };
+      const total = target.adults + target.children;
+
+      // If parent state exceeds maxAllowed, clamp it
+      if (maxAllowed !== undefined && maxAllowed > 0 && total > maxAllowed) {
+        // Simple clamping: reduce children first, then adults
+        if (target.children > 0) {
+          const overage = total - maxAllowed;
+          target.children = Math.max(0, target.children - overage);
+          const newTotal = target.adults + target.children;
+          if (newTotal > maxAllowed) {
+            target.adults = maxAllowed;
+          }
+        } else {
+          target.adults = maxAllowed;
+        }
+
+        // Notify parent if we had to clamp
+        onGuestChange?.(target);
+      }
+
+      // Also ensure infants don't exceed adults
+      if (target.infants > target.adults) {
+        target.infants = target.adults;
+        onGuestChange?.(target);
+      }
+
+      return target;
+    });
+  }, [initialGuests, maxAllowed]);
+
   const totalGuests = useMemo(() => {
     // Infants don't count toward maximum (matching Airbnb style)
     return guests.adults + guests.children;
