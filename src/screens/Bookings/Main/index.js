@@ -103,27 +103,60 @@ const transformBookingData = (apiBooking, listingData = null) => {
 
   const status = statusMap[apiBooking.orderStatus] || "Upcoming";
 
-  // Get title - prefer listing data, then booking data
-  const title = listingData?.title || 
-                apiBooking?.listingTitle || 
-                apiBooking?.listing?.title || 
-                apiBooking?.title || 
-                "Booking";
+  // Get title - for EVENTS orders, prefer eventTitle; for others, prefer listing data
+  // Check if this is an EVENTS order by businessInterestCode
+  const isEventOrder = apiBooking?.businessInterestCode === "EVENTS" || 
+                       apiBooking?.eventId != null;
   
-  // Get category - prefer listing data, then booking data
-  const category = listingData?.category || 
-                   listingData?.categoryName ||
-                   apiBooking?.listingCategory || 
-                   apiBooking?.listing?.category || 
-                   apiBooking?.category || 
-                   apiBooking?.categoryName || 
-                   "Experience";
+  const title = isEventOrder
+    ? (apiBooking?.eventTitle || 
+       apiBooking?.eventDetails?.eventTitle || 
+       apiBooking?.listing?.eventTitle ||
+       apiBooking?.title || 
+       "Event Booking")
+    : (listingData?.title || 
+       apiBooking?.listingTitle || 
+       apiBooking?.listing?.title || 
+       apiBooking?.title || 
+       "Booking");
   
-  // Extract location - prefer listing data, then booking data
+  // Get category - use businessInterestCode (like "EXPERIENCE", "EVENTS")
+  // This shows the service type after "SERVICE •"
+  const category = 
+    listingData?.businessInterestCode ||
+    listingData?.businessInterest ||
+    apiBooking?.businessInterestCode ||
+    apiBooking?.businessInterest ||
+    apiBooking?.listing?.businessInterestCode ||
+    apiBooking?.listing?.businessInterest ||
+    (apiBooking?.eventId || apiBooking?.eventDetails ? "EVENTS" : "EXPERIENCE");
+  
+  // Extract location - for EVENTS prefer event data, for others prefer listing data
   let location = "Location TBD";
   
-  // Priority 1: Check listing data first (most accurate)
-  if (listingData) {
+  // For event orders, check event location first
+  if (isEventOrder) {
+    if (apiBooking?.eventDetails?.venueFullAddress) {
+      location = apiBooking.eventDetails.venueFullAddress;
+    } else if (apiBooking?.eventDetails?.venueName) {
+      location = apiBooking.eventDetails.venueName;
+    } else if (apiBooking?.eventDetails?.venueDistrict && apiBooking?.eventDetails?.venueState) {
+      location = `${apiBooking.eventDetails.venueDistrict}, ${apiBooking.eventDetails.venueState}`;
+    } else if (apiBooking?.eventDetails?.venueDistrict) {
+      location = apiBooking.eventDetails.venueDistrict;
+    } else if (apiBooking?.venueFullAddress) {
+      location = apiBooking.venueFullAddress;
+    } else if (apiBooking?.venueName) {
+      location = apiBooking.venueName;
+    } else if (apiBooking?.venueDistrict && apiBooking?.venueState) {
+      location = `${apiBooking.venueDistrict}, ${apiBooking.venueState}`;
+    } else if (apiBooking?.venueDistrict) {
+      location = apiBooking.venueDistrict;
+    }
+  }
+  
+  // For non-event orders or as fallback, check listing data first (most accurate)
+  if (location === "Location TBD" && listingData) {
     if (listingData.meetingAddress) {
     location = listingData.meetingAddress;
     } else if (listingData.meetingLocationName) {
@@ -139,7 +172,7 @@ const transformBookingData = (apiBooking, listingData = null) => {
   }
   }
   
-  // Priority 2: Check booking data if listing data not available
+  // Fallback: Check booking data if location still not available
   if (location === "Location TBD") {
     if (apiBooking?.meetingAddress) {
     location = apiBooking.meetingAddress;
@@ -160,30 +193,46 @@ const transformBookingData = (apiBooking, listingData = null) => {
     } else if (apiBooking?.listing?.city && apiBooking?.listing?.state) {
       location = `${apiBooking.listing.city}, ${apiBooking.listing.state}`;
     }
+    // Check event details for location
+    else if (apiBooking?.eventDetails?.venueFullAddress) {
+      location = apiBooking.eventDetails.venueFullAddress;
+    } else if (apiBooking?.eventDetails?.venueName) {
+      location = apiBooking.eventDetails.venueName;
+    } else if (apiBooking?.eventDetails?.venueDistrict && apiBooking?.eventDetails?.venueState) {
+      location = `${apiBooking.eventDetails.venueDistrict}, ${apiBooking.eventDetails.venueState}`;
+    } else if (apiBooking?.eventDetails?.venueDistrict) {
+      location = apiBooking.eventDetails.venueDistrict;
+    }
   }
   
-  // Get cover photo - prefer listing data, then booking data
+  // Get cover photo - for EVENTS prefer event images, for others prefer listing data
   let coverPhotoUrl = null;
   
-  if (listingData?.coverPhotoUrl) {
-    coverPhotoUrl = listingData.coverPhotoUrl;
-  } else if (apiBooking?.listingCoverPhoto) {
-    coverPhotoUrl = apiBooking.listingCoverPhoto;
-  } else if (apiBooking?.listing?.coverPhotoUrl) {
-    coverPhotoUrl = apiBooking.listing.coverPhotoUrl;
-  } else if (apiBooking?.coverPhotoUrl) {
-    coverPhotoUrl = apiBooking.coverPhotoUrl;
+  if (isEventOrder) {
+    // For event orders, prioritize event-specific cover images
+    coverPhotoUrl = apiBooking?.eventCoverImageUrl ||
+                    apiBooking?.eventDetails?.eventCoverImageUrl ||
+                    apiBooking?.listing?.eventCoverImageUrl ||
+                    apiBooking?.coverPhotoUrl ||
+                    null;
+  } else {
+    // For non-event orders, use listing data
+    if (listingData?.coverPhotoUrl) {
+      coverPhotoUrl = listingData.coverPhotoUrl;
+    } else if (apiBooking?.listingCoverPhoto) {
+      coverPhotoUrl = apiBooking.listingCoverPhoto;
+    } else if (apiBooking?.listing?.coverPhotoUrl) {
+      coverPhotoUrl = apiBooking.listing.coverPhotoUrl;
+    } else if (apiBooking?.coverPhotoUrl) {
+      coverPhotoUrl = apiBooking.coverPhotoUrl;
+    }
   }
   
   // Format the image URL to ensure it's a valid full URL
   coverPhotoUrl = formatImageUrl(coverPhotoUrl);
 
-  // Determine type - prefer listing data, then booking data
-  const type = listingData?.businessInterest === "EXPERIENCE" ||
-               apiBooking?.businessInterest === "EXPERIENCE" || 
-               apiBooking?.listing?.businessInterest === "EXPERIENCE" 
-               ? "EXPERIENCE" 
-               : "SERVICE";
+  // Type is always "SERVICE" as the label
+  const type = "SERVICE";
 
   return {
     id: `bk-${apiBooking.orderId}`,
@@ -613,10 +662,17 @@ const Main = ({
                       <div className={styles.actions}>
                         {(actionsByStatus[booking.status] || []).map((action) => {
                           if (action.label === "View Details") {
+                            // Pass businessInterestCode (category) to determine which API to use
+                            const isEvent = booking.category === "EVENTS" || 
+                                          booking.bookingData?.eventId || 
+                                          booking.bookingData?.businessInterestCode === "EVENTS";
+                            const viewUrl = isEvent 
+                              ? `/viewdetails?id=${booking.id}&type=event`
+                              : `/viewdetails?id=${booking.id}`;
                             return (
                               <Link
                                 key={`${booking.id}-${action.label}`}
-                                to={`/viewdetails?id=${booking.id}`}
+                                to={viewUrl}
                                 className={getButtonClassName(action.variant)}
                               >
                                 {action.label}
