@@ -324,7 +324,6 @@ const Main = ({
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
-  const [adminOverride, setAdminOverride] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState(null);
   const [transformedBookings, setTransformedBookings] = useState([]);
@@ -526,7 +525,6 @@ const Main = ({
   const handleCancelBookingClick = (booking) => {
     setBookingToCancel(booking);
     setCancelReason("");
-    setAdminOverride(false);
     setCancelError(null);
     setCancelModalVisible(true);
   };
@@ -578,7 +576,6 @@ const Main = ({
       setCancelModalVisible(false);
       setBookingToCancel(null);
       setCancelReason("");
-      setAdminOverride(false);
     } catch (error) {
       console.error("Error cancelling booking:", error);
       setCancelError(
@@ -595,7 +592,6 @@ const Main = ({
     setCancelModalVisible(false);
     setBookingToCancel(null);
     setCancelReason("");
-    setAdminOverride(false);
     setCancelError(null);
   };
 
