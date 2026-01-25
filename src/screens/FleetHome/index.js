@@ -114,7 +114,7 @@ const FleetHome = () => {
             // Handle different response structures
             let listings = sectionData?.listings || sectionData?.data?.listings || [];
             const sectionInfo = sectionData?.section || section;
-
+        
             // Fallback: if this is an Events section and the section listings endpoint returns empty,
             // fetch from the dedicated public events endpoint.
             const sectionTitle = sectionInfo?.sectionTitle || section?.sectionTitle || "";

@@ -794,12 +794,17 @@ export const getHomepageHero = async () => {
   }
 };
 
-// ✅ Get homepage sections
-export const getHomepageSections = async () => {
+// ✅ Get homepage sections (requires businessInterestId: 1=Experience, 2=Events)
+export const getHomepageSections = async (businessInterestId) => {
   try {
-    const response = await ListingsAPI.get("/public/homepage-sections");
+    if (!businessInterestId) {
+      throw new Error("businessInterestId is required");
+    }
+    const response = await ListingsAPI.get("/public/homepage-sections", {
+      params: { businessInterestId }
+    });
     const payload = response.data;
-    console.log("✅ Homepage sections fetched (raw):", payload);
+    console.log("✅ Homepage sections fetched (businessInterestId=" + businessInterestId + "):", payload);
 
     if (Array.isArray(payload)) return payload;
     if (payload && typeof payload === "object") {
