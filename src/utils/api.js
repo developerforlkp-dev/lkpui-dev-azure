@@ -774,6 +774,50 @@ export const getMyReviews = async () => {
   }
 };
 
+// ✅ Get eligible bookings (completed orders without reviews)
+export const getEligibleBookings = async () => {
+  try {
+    const response = await ListingsAPI.get(`/reviews/eligible-bookings`);
+    const payload = response.data;
+    if (Array.isArray(payload)) return payload;
+    if (payload && typeof payload === "object") {
+      if (Array.isArray(payload.data)) return payload.data;
+      if (Array.isArray(payload.items)) return payload.items;
+    }
+    return [];
+  } catch (error) {
+    console.error("❌ Error fetching eligible bookings:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+// ✅ Admin API (requires Admin JWT in localStorage as "adminToken")
+export const AdminAPI = axios.create({
+  baseURL: getApiBaseURL(),
+  headers: { "Content-Type": "application/json" },
+});
+
+AdminAPI.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("adminToken");
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
+AdminAPI.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.warn("⚠️ Admin API: Unauthorized (invalid or missing admin token)");
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ✅ Get homepage hero data
 export const getHomepageHero = async () => {
   try {
