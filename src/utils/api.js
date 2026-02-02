@@ -167,7 +167,7 @@ export const getOrderCancelPreview = async (orderId) => {
   }
 };
 
-// ✅ Function to get single listing by id
+// Function to get single listing by id
 export const getListing = async (id) => {
   try {
     const response = await ListingsAPI.get(`/public/listings/${id}`);
@@ -187,7 +187,7 @@ export const getListing = async (id) => {
   }
 };
 
-// ✅ Function to get customer orders
+// Function to get customer orders
 export const getCustomerOrders = async (limit = 20, page = 1) => {
   try {
     const response = await ListingsAPI.get("/orders", {
@@ -214,7 +214,7 @@ export const getCustomerOrders = async (limit = 20, page = 1) => {
   }
 };
 
-// ✅ Function to get slot details by slot ID
+// Function to get slot details by slot ID
 export const getSlotDetails = async (slotId) => {
   try {
     const response = await ListingsAPI.get(`/public/listings/slots/${slotId}`);
@@ -234,7 +234,7 @@ export const getSlotDetails = async (slotId) => {
   }
 };
 
-// ✅ Phone Authentication API functions
+// Phone Authentication API functions
 // Send OTP to phone number
 export const sendPhoneOTP = async (phone, countryCode = "+91") => {
   try {
@@ -268,7 +268,7 @@ export const verifyPhoneOTP = async (phone, otp, countryCode = "+91", firstName 
   }
 };
 
-// ✅ Google OAuth login
+// Google OAuth login
 export const loginWithGoogle = async (idToken) => {
   try {
     const url = "/customers/auth/google";
@@ -303,7 +303,7 @@ export const loginWithGoogle = async (idToken) => {
   }
 };
 
-// ✅ Get billing configuration for a listing
+// Get billing configuration for a listing
 export const getBillingConfiguration = async (listingId) => {
   try {
     // Validate parameter
@@ -348,7 +348,7 @@ export const getBillingConfiguration = async (listingId) => {
   }
 };
 
-// ✅ Get availability for a listing slot
+// Get availability for a listing slot
 export const getAvailability = async (listingId, startDate, endDate, slotId) => {
   try {
     // Ensure slotId is a number or string
@@ -385,7 +385,7 @@ export const getAvailability = async (listingId, startDate, endDate, slotId) => 
   }
 };
 
-// ✅ Create an order
+// Create an order
 export const createOrder = async (orderData) => {
   try {
     console.log("📤 Creating order with data:", JSON.stringify(orderData, null, 2));
@@ -444,7 +444,7 @@ export const createEventOrder = async (orderData) => {
   }
 };
 
-// ✅ Get slots for a listing
+// Get slots for a listing
 export const getListingSlots = async (listingId, startDate, endDate) => {
   try {
     // Validate parameters
@@ -513,7 +513,7 @@ export const getListingSlots = async (listingId, startDate, endDate) => {
   }
 };
 
-// ✅ Get order details by ID
+// Get order details by ID
 export const getOrderDetails = async (orderId) => {
   try {
     // Validate parameter
@@ -625,7 +625,7 @@ export const getEventDetails = async (eventId) => {
   }
 };
 
-// ✅ Get completed and expired orders count
+// Get completed and expired orders count
 export const getCompleteExpiredOrders = async () => {
   try {
     // The interceptor will automatically add JWT token
@@ -660,7 +660,7 @@ export const getCompleteExpiredOrders = async () => {
   }
 };
 
-// ✅ Get completed orders with pagination
+// Get completed orders with pagination
 export const getCompletedOrders = async (page = 1, limit = 20) => {
   try {
     // The interceptor will automatically add JWT token
@@ -699,7 +699,7 @@ export const getCompletedOrders = async (page = 1, limit = 20) => {
   }
 };
 
-// ✅ Submit a review for an order
+// Submit a review for an order
 export const submitOrderReview = async (orderId, reviewData) => {
   try {
     // Validate parameters
@@ -762,7 +762,7 @@ export const submitOrderReview = async (orderId, reviewData) => {
   }
 };
 
-// ✅ Get user's reviews
+// Get user's reviews
 export const getMyReviews = async () => {
   try {
     const response = await ListingsAPI.get(`/reviews/my-reviews`);
@@ -774,7 +774,7 @@ export const getMyReviews = async () => {
   }
 };
 
-// ✅ Get eligible bookings (completed orders without reviews)
+// Get eligible bookings (completed orders without reviews)
 export const getEligibleBookings = async () => {
   try {
     const response = await ListingsAPI.get(`/reviews/eligible-bookings`);
@@ -791,7 +791,7 @@ export const getEligibleBookings = async () => {
   }
 };
 
-// ✅ Admin API (requires Admin JWT in localStorage as "adminToken")
+// Admin API (requires Admin JWT in localStorage as "adminToken")
 export const AdminAPI = axios.create({
   baseURL: getApiBaseURL(),
   headers: { "Content-Type": "application/json" },
@@ -818,7 +818,7 @@ AdminAPI.interceptors.response.use(
   }
 );
 
-// ✅ Get homepage hero data
+// Get homepage hero data
 export const getHomepageHero = async () => {
   try {
     const response = await ListingsAPI.get("/homepage/hero");
@@ -838,14 +838,19 @@ export const getHomepageHero = async () => {
   }
 };
 
-// ✅ Get homepage sections (requires businessInterestId: 1=Experience, 2=Events)
+// Get homepage sections (requires businessInterestId: 1=Experience, 2=Events)
 export const getHomepageSections = async (businessInterestId) => {
   try {
     if (!businessInterestId) {
       throw new Error("businessInterestId is required");
     }
+    
     const response = await ListingsAPI.get("/public/homepage-sections", {
-      params: { businessInterestId }
+      params: { businessInterestId, _ts: Date.now() },
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
     });
     const payload = response.data;
     console.log("✅ Homepage sections fetched (businessInterestId=" + businessInterestId + "):", payload);
@@ -862,9 +867,7 @@ export const getHomepageSections = async (businessInterestId) => {
   }
 };
 
-
-
-// ✅ Get listings for a specific homepage section
+// Get listings for a specific homepage section
 export const getHomepageSectionListings = async (sectionId, limit = 12, offset = 0) => {
   try {
     if (!sectionId) {
@@ -872,7 +875,11 @@ export const getHomepageSectionListings = async (sectionId, limit = 12, offset =
     }
     
     const response = await ListingsAPI.get(`/public/homepage-sections/${sectionId}/listings`, {
-      params: { limit, offset },
+      params: { limit, offset, _ts: Date.now() },
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
     });
     const payload = response.data;
     console.log(`✅ Section ${sectionId} listings fetched (raw):`, payload);
@@ -895,6 +902,54 @@ export const getEventListings = async (limit = 12, offset = 0) => {
     return payload; // Return the full response object with event listings
   } catch (error) {
     console.error(`❌ Error fetching event listings:`, error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getStayListings = async (limit = 20, offset = 0) => {
+  try {
+    const response = await ListingsAPI.get(`/public/stays`, {
+      params: { limit, offset },
+    });
+    const payload = response.data;
+    console.log(`✅ Stay listings fetched (raw):`, payload);
+
+    if (Array.isArray(payload)) return payload;
+    if (payload && typeof payload === "object") {
+      if (Array.isArray(payload.stays)) return payload.stays;
+      if (payload.data && Array.isArray(payload.data.stays)) return payload.data.stays;
+      if (Array.isArray(payload.data)) return payload.data;
+      if (Array.isArray(payload.items)) return payload.items;
+    }
+
+    return [];
+  } catch (error) {
+    console.error(`❌ Error fetching stay listings:`, error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getStayDetails = async (stayId) => {
+  try {
+    if (!stayId) {
+      throw new Error("stayId is required");
+    }
+
+    const stayIdNum = Number(stayId);
+    const stayIdStr = (!isNaN(stayIdNum) && stayIdNum > 0) ? String(stayIdNum) : String(stayId);
+
+    const response = await ListingsAPI.get(`/public/stays/${stayIdStr}`);
+    const payload = response.data;
+    console.log("✅ Stay details fetched (raw):", payload);
+
+    if (payload && typeof payload === "object") {
+      if (payload.stay) return payload.stay;
+      if (payload.data && typeof payload.data === "object") return payload.data;
+    }
+
+    return payload;
+  } catch (error) {
+    console.error("❌ Error fetching stay details:", error.response?.data || error.message);
     throw error;
   }
 };

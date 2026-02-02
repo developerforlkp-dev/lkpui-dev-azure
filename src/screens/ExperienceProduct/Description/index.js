@@ -16,6 +16,7 @@ import { getBillingConfiguration, createOrder, getListingSlots, loginWithGoogle 
 
 const Description = ({ classSection, listing, hostData }) => {
   const history = useHistory();
+  const isStay = Boolean(listing?.stayId || listing?.stay_id || listing?.propertyType === "STAY");
   const [selectedAddOns, setSelectedAddOns] = useState([]);
   const [addOnQuantities, setAddOnQuantities] = useState({}); // Track quantities for Group pricing addons
 
@@ -1356,6 +1357,12 @@ const Description = ({ classSection, listing, hostData }) => {
 
   // Fetch slots data when listing is available
   useEffect(() => {
+    if (isStay) {
+      setSlotsData([]);
+      setTransformedTimeSlots([]);
+      setAvailabilityData([]);
+      return;
+    }
     // Early return if listing is not yet loaded or is empty object
     if (!listing || (typeof listing === 'object' && Object.keys(listing).length === 0)) {
       return;
@@ -1507,10 +1514,14 @@ const Description = ({ classSection, listing, hostData }) => {
     };
 
     fetchSlots();
-  }, [listing]);
+  }, [listing, isStay]);
 
   // Fetch billing configuration when listing is available
   useEffect(() => {
+    if (isStay) {
+      setBillingConfig(null);
+      return;
+    }
     // Early return if listing is not yet loaded or is empty object
     if (!listing || (typeof listing === 'object' && Object.keys(listing).length === 0)) {
       return;
@@ -1559,7 +1570,7 @@ const Description = ({ classSection, listing, hostData }) => {
     };
 
     fetchBillingConfig();
-  }, [listing]);
+  }, [listing, isStay]);
 
   // Note: Availability is now fetched from slots API, so we don't need a separate availability fetch
   // The old availability endpoint is kept as a fallback but disabled when slots data is available

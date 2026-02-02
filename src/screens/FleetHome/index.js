@@ -19,10 +19,11 @@ const filterOptions = [
 
 
 /// Business Interest IDs
-// Experience → 1, Events → 2. Stays/Food/Places have no ID yet (Coming Soon).
+// Experience → 1, Events → 2, Stays → 4
 const getBusinessInterestId = (filterId) => {
   if (filterId === "experience") return 1;
   if (filterId === "events") return 2;
+  if (filterId === "stays") return 4;
   return null;
 };
 
@@ -46,7 +47,7 @@ const FleetHome = () => {
   const guestItemRef = useRef(null);
   
   // Determine if calendar should be shown (for Experience and Events)
-  const showCalendar = activeFilter === "experience" || activeFilter === "events";
+  const showCalendar = activeFilter === "experience" || activeFilter === "events" || activeFilter === "stays";
   
   // Format selected date for display
   const formattedDate = selectedDate 
@@ -82,7 +83,7 @@ const FleetHome = () => {
     setShowGuestPicker(false);
   }, [activeFilter]);
   
-  // Fetch homepage sections and their listings (by business interest: 1=Experience, 2=Events)
+  // Fetch homepage sections and their listings (by business interest: 1=Experience, 2=Events, 3=Stays)
   // On refresh, Experience is selected by default → always call with businessInterestId=1
   useEffect(() => {
     const businessInterestId = getBusinessInterestId(activeFilter) ?? (activeFilter === "experience" ? 1 : null);
@@ -117,8 +118,8 @@ const FleetHome = () => {
             let listings = sectionData?.listings || sectionData?.data?.listings || [];
             const sectionInfo = sectionData?.section || section;
         
-            // Fallback: if this is an Events section and the section listings endpoint returns empty,
-            // fetch from the dedicated public events endpoint.
+            // Fallback: if this is an Events/Stays section and the section listings endpoint returns empty,
+            // fetch from the dedicated public endpoint.
             const sectionTitle = sectionInfo?.sectionTitle || section?.sectionTitle || "";
             const isEventsSection = typeof sectionTitle === "string" && sectionTitle.toLowerCase().includes("events");
             if (isEventsSection && (!listings || listings.length === 0)) {
@@ -269,7 +270,7 @@ const FleetHome = () => {
                     <Icon name={filter.icon} size="18" />
                     <span>{filter.label}</span>
                   </div>
-                  {!["experience", "events"].includes(filter.id) && (
+                  {!["experience", "events", "stays"].includes(filter.id) && (
                     <div className={styles.comingSoonBadge}>Coming Soon</div>
                   )}
                 </button>
