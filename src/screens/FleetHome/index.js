@@ -33,6 +33,7 @@ const FleetHome = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+
   // Search state
   const [selectedDate, setSelectedDate] = useState(null);
   const [guests, setGuests] = useState({
@@ -46,13 +47,14 @@ const FleetHome = () => {
   const dateItemRef = useRef(null);
   const guestItemRef = useRef(null);
 
+
   // Determine if calendar should be shown (for Experience and Events)
   const showCalendar = activeFilter === "experience" || activeFilter === "events" || activeFilter === "stays";
 
-  // Format selected date for display
   const formattedDate = selectedDate
     ? moment(selectedDate).format("MMM DD, YYYY")
     : "Select date";
+
 
   // Format guest count for display
   const guestCountText = (() => {
@@ -61,6 +63,7 @@ const FleetHome = () => {
     if (total === 1) return "1 guest";
     return `${total} guests`;
   })();
+
 
   // Handle date selection
   const handleDateSelect = (startDateStr, endDateStr) => {
@@ -72,10 +75,12 @@ const FleetHome = () => {
     }
   };
 
+
   // Handle guest change
   const handleGuestChange = (newGuests) => {
     setGuests(newGuests);
   };
+
 
   // Close pickers when filter changes
   useEffect(() => {
@@ -194,6 +199,7 @@ const FleetHome = () => {
         const fetchedSections = await getHomepageSections(businessInterestId);
         console.log("✅ Fetched homepage sections (businessInterestId=" + businessInterestId + "):", fetchedSections);
 
+
         // Sort sections by sortOrder
         const sortedSections = [...fetchedSections].sort((a, b) => {
           const orderA = a.sortOrder !== undefined ? a.sortOrder : 999;
@@ -201,11 +207,13 @@ const FleetHome = () => {
           return orderA - orderB;
         });
 
+
         // Step 2: Fetch listings for each section in parallel
         const sectionPromises = sortedSections.map(async (section) => {
           try {
             const sectionData = await getHomepageSectionListings(section.sectionId, 12, 0);
             console.log(`✅ Section ${section.sectionId} data:`, sectionData);
+
 
             // Handle different response structures
             let listings = sectionData?.listings || sectionData?.data?.listings || [];
@@ -226,7 +234,9 @@ const FleetHome = () => {
               }
             }
 
+
             console.log(`✅ Section ${section.sectionId} has ${listings.length} listings`);
+
 
             return {
               section: sectionInfo,
@@ -241,6 +251,7 @@ const FleetHome = () => {
           }
         });
 
+
         const sectionsWithListings = await Promise.allSettled(sectionPromises);
         const resolvedSections = sectionsWithListings.map((result) => {
           if (result.status === "fulfilled") {
@@ -250,10 +261,13 @@ const FleetHome = () => {
           return { section: {}, listings: [] };
         });
 
+
         console.log("✅ Loaded all sections with listings:", resolvedSections);
         console.log(`✅ Total sections: ${resolvedSections.length}, Sections with listings: ${resolvedSections.filter(s => s.listings && s.listings.length > 0).length}`);
 
+
         setSectionsData(resolvedSections);
+
 
       } catch (err) {
         console.error("❌ Error loading homepage data:", err);
@@ -282,6 +296,7 @@ const FleetHome = () => {
       <div className={styles.heroSection}>
         <HeroSection />
       </div>
+
 
       <div className={cn("container", styles.container)}>
         <div className={styles.glassContainer}>
@@ -379,11 +394,13 @@ const FleetHome = () => {
           </div>
         )}
 
+
         {error && (
           <div style={{ padding: "1rem", textAlign: "center", backgroundColor: "#fee", color: "#c33" }}>
             <p>⚠️ {error}</p>
           </div>
         )}
+
 
         {!loading && !error && sectionsData.length === 0 && (
           <div style={{ padding: "3rem", textAlign: "center" }}>
@@ -394,6 +411,7 @@ const FleetHome = () => {
           </div>
         )}
 
+
         {!loading && !error && sectionsData.length > 0 && sectionsData.every(s => !s.listings || s.listings.length === 0) && (
           <div style={{ padding: "3rem", textAlign: "center" }}>
             <p>Sections loaded but no listings found</p>
@@ -403,6 +421,7 @@ const FleetHome = () => {
           </div>
         )}
 
+
         {!loading &&
           sectionsData.map((sectionData, index) => {
             if (!sectionData || !sectionData.section) {
@@ -410,10 +429,12 @@ const FleetHome = () => {
               return null;
             }
 
+
             if (!sectionData.listings || sectionData.listings.length === 0) {
               console.log(`ℹ️ Section "${sectionData.section.sectionTitle || sectionData.section.sectionId}" has no listings, skipping`);
               return null; // Skip sections with no listings
             }
+
 
             return (
               <HomepageSectionCard
