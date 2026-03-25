@@ -442,7 +442,6 @@ const CheckoutComplete = () => {
             <CheckoutCompleteComponent
               className={styles.complete}
               title={title}
-              parameters={parameters}
               options={options}
               items={items}
               isStay={booking?.isStay || !!(booking?.checkInDate || booking?.checkOutDate)}

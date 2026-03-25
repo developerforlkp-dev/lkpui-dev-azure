@@ -407,7 +407,6 @@ const ExperienceCheckoutComplete = () => {
             <CheckoutComplete
               className={styles.complete}
               title={title}
-              parameters={parameters}
               options={options}
               items={items}
               paymentFailed={paymentFailed}
