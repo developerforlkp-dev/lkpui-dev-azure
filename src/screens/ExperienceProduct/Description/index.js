@@ -183,24 +183,9 @@ const Description = ({ classSection, listing, hostData }) => {
       const totalExtraPrice = (extraAdults * extraAdultPrice) + (extraChildren * extraChildPrice);
 
 
-      const amountPerNight = basePrice + totalExtraPrice;
-      const nightsCount = checkInDate && checkOutDate ? Math.max(1, moment(checkOutDate).diff(moment(checkInDate), "days")) : 1;
-      // Multiply by roomsNeeded so total amount reflects all rooms booked
-      calculatedAmount = amountPerNight * nightsCount * roomsNeeded;
-
-      console.log("💰 Booking amount calc:", { basePrice, roomCap, guestCount, roomsNeeded, amountPerNight, nightsCount, calculatedAmount });
-      // Multiply by roomsNeeded so total amount reflects all rooms booked
-      calculatedAmount = amountPerNight * nightsCount * roomsNeeded;
-
-      console.log("💰 Booking amount calc:", { basePrice, roomCap, guestCount, roomsNeeded, amountPerNight, nightsCount, calculatedAmount });
-    }
-
-
-
       let orderData;
 
     if (staySelectedRoomType && selectedRoomId) {
-      // Room-based stay: include rooms array with correct roomsBooked count
       // Room-based stay: include rooms array with correct roomsBooked count
       orderData = {
         stayId: Number(stayId) || 0,
@@ -209,12 +194,9 @@ const Description = ({ classSection, listing, hostData }) => {
         numberOfGuests: guestCount,
         amount: calculatedAmount, // B2C price × nights × roomsNeeded
         paymentMethod: "razorpay",
-        amount: calculatedAmount, // B2C price × nights × roomsNeeded
-        paymentMethod: "razorpay",
         rooms: [
           {
             roomId: selectedRoomId,
-            roomsBooked: roomsNeeded,  // ← correct: 1 or more based on guest count
             roomsBooked: roomsNeeded,  // ← correct: 1 or more based on guest count
             mealPlanCode: mealPlanCode,
           },
@@ -264,12 +246,6 @@ const Description = ({ classSection, listing, hostData }) => {
     const amountInPaise = Math.round(calculatedAmount * 100);
     // Keep backend Razorpay order id & key for the actual payment flow
 
-    // Always use our frontend-calculated amount (b2cPrice × nights × roomsNeeded).
-    // The backend may add taxes/surcharges that inflate the Razorpay order amount —
-    // we display our calculated total to keep it consistent with the receipt breakdown.
-    const amountInPaise = Math.round(calculatedAmount * 100);
-    // Keep backend Razorpay order id & key for the actual payment flow
-
     const currency = paymentResponse?.currency || res?.currency || res?.order?.currency || "INR";
 
     localStorage.setItem("pendingPayment", JSON.stringify({
@@ -290,6 +266,9 @@ const Description = ({ classSection, listing, hostData }) => {
 };
 
 
+    console.log("📦 Creating stay order (updated schema):", orderData);
+    const res = await createStayOrder(orderData);
+    console.log("✅ Stay order created:", res);
 
 // Helper function to format time range with cleaner display
 const formatTimeRange = (startTime, endTime) => {
@@ -346,14 +325,11 @@ useEffect(() => {
   if (!isStay) return;
   // Only reset availability when DATES change, NOT when guest count changes.
   // Guest count changes should not require re-checking availability.
-  // Only reset availability when DATES change, NOT when guest count changes.
-  // Guest count changes should not require re-checking availability.
   setStayAvailabilityChecked(false);
   setStayAvailabilityResult(null);
   setStaySelectedRoomType("");
   setShowRoomTypePicker(false);
 }, [isStay, selectedDate, selectedEndDate]);
-  }, [isStay, selectedDate, selectedEndDate]);
 
 // Helper function to get guest count (supports both old and new format)
 const getGuestCount = (guestsObj) => {
@@ -457,7 +433,53 @@ const stayRoomTypeOptions = useMemo(() => {
     .filter(Boolean);
 }, [stayAvailabilityResult, listing, guests]);
 
+  if (!Array.isArray(candidates) || candidates.length === 0) return [];
 
+  const seenIds = new Set();
+  return candidates
+    .map((x) => {
+      if (typeof x === "string") {
+        if (seenIds.has(x)) return null;
+        seenIds.add(x);
+        return { value: x, label: x, raw: x };
+      }
+      const id =
+        x?.roomId ??
+        x?.room_id ??
+        x?.roomTypeId ??
+        x?.room_type_id ??
+        x?.id ??
+        x?.code ??
+        x?.name ??
+        x?.title;
+
+      if (!id || seenIds.has(String(id))) return null;
+      seenIds.add(String(id));
+
+      // Show ALL rooms regardless of guest count.
+      // Extra-room logic / messaging handles cases where guests > room capacity.
+      // Show ALL rooms regardless of guest count.
+      // Extra-room logic / messaging handles cases where guests > room capacity.
+      const maxRoomGuests = x?.maxGuests ?? x?.max_guests ?? x?.capacity ?? x?.maxAdults ?? 0;
+
+      const labelBase =
+        x?.roomName ??
+        x?.room_name ??
+        x?.roomTypeName ??
+        x?.room_type_name ??
+        x?.name ??
+        x?.title ??
+        String(id ?? "Room");
+
+      const availableRooms =
+        x?.availableRooms ?? x?.available_rooms ?? x?.availability ?? x?.available ?? null;
+
+      let label = String(labelBase);
+      if (typeof availableRooms === "number") {
+        label += ` (${availableRooms} available)`;
+      } else if (maxRoomGuests > 0) {
+        label += ` (Max ${maxRoomGuests})`;
+      }
 
 
 
@@ -736,22 +758,6 @@ const items = isStay
       icon: "user",
     },
   ];
-{
-  title: selectedDate ? selectedDate.format("MMM DD, YYYY") : formattedDefaultDate,
-    category: "Select date",
-      icon: "calendar",
-      },
-{
-  title: selectedTimeSlotDisplay || "Select time",
-    category: "Time slot",
-      icon: "clock",
-      },
-{
-  title: guestCountText,
-    category: "Guest",
-      icon: "user",
-      },
-    ];
 
 // Check if user is logged in
 const isLoggedIn = () => {
@@ -815,19 +821,12 @@ const lowestRoomPrice = useMemo(() => {
 
   let minB2cMealPrice = Infinity;
   let minGeneralB2cPrice = Infinity;
-  let minB2cMealPrice = Infinity;
-  let minGeneralB2cPrice = Infinity;
 
   rooms.forEach((room) => {
-    // 1. Check nested mealPlanPricing — use ONLY b2cPrice (never b2bPrice for customer display)
     // 1. Check nested mealPlanPricing — use ONLY b2cPrice (never b2bPrice for customer display)
     if (room.mealPlanPricing && typeof room.mealPlanPricing === 'object') {
       Object.values(room.mealPlanPricing).forEach((plan) => {
         if (plan) {
-          const val = parseFloat(plan.b2cPrice || plan.price || plan.amount || 0);
-          if (!isNaN(val) && val > 0 && val < minB2cMealPrice) {
-            minB2cMealPrice = val;
-          }
           const val = parseFloat(plan.b2cPrice || plan.price || plan.amount || 0);
           if (!isNaN(val) && val > 0 && val < minB2cMealPrice) {
             minB2cMealPrice = val;
@@ -837,36 +836,27 @@ const lowestRoomPrice = useMemo(() => {
     }
 
     // 2. Flat meal plan b2c prices
-    // 2. Flat meal plan b2c prices
     const mealPrices = [room.cpPrice, room.mapPrice, room.apPrice, room.cp_price, room.map_price, room.ap_price];
     mealPrices.forEach((p) => {
       const val = parseFloat(p);
       if (!isNaN(val) && val > 0 && val < minB2cMealPrice) {
         minB2cMealPrice = val;
-        if (!isNaN(val) && val > 0 && val < minB2cMealPrice) {
-          minB2cMealPrice = val;
-        }
-      });
+      }
+    });
 
     // 3. General b2cPrice (never b2bPrice)
     const generalB2cPrices = [room.b2cPrice, room.b2c_price, room.price, room.amount];
     generalB2cPrices.forEach((p) => {
-      // 3. General b2cPrice (never b2bPrice)
-      const generalB2cPrices = [room.b2cPrice, room.b2c_price, room.price, room.amount];
-      generalB2cPrices.forEach((p) => {
-        const val = parseFloat(p);
-        if (!isNaN(val) && val > 0 && val < minGeneralB2cPrice) {
-          minGeneralB2cPrice = val;
-          if (!isNaN(val) && val > 0 && val < minGeneralB2cPrice) {
-            minGeneralB2cPrice = val;
-          }
-        });
+      const val = parseFloat(p);
+      if (!isNaN(val) && val > 0 && val < minGeneralB2cPrice) {
+        minGeneralB2cPrice = val;
+      }
     });
+  });
 
-    const finalPrice = minB2cMealPrice !== Infinity ? minB2cMealPrice : (minGeneralB2cPrice !== Infinity ? minGeneralB2cPrice : null);
-    const finalPrice = minB2cMealPrice !== Infinity ? minB2cMealPrice : (minGeneralB2cPrice !== Infinity ? minGeneralB2cPrice : null);
+  const finalPrice = minB2cMealPrice !== Infinity ? minB2cMealPrice : (minGeneralB2cPrice !== Infinity ? minGeneralB2cPrice : null);
 
-    if (finalPrice !== null || rooms.length > 0) {
+  if (finalPrice !== null || rooms.length > 0) {
       console.log(`📊 API Pricing Debug [Listing: ${listing?.id || listing?.stayId || 'unknown'}]:`, {
         isStay,
         foundRoomsCount: rooms.length,
@@ -2587,7 +2577,6 @@ const lowestRoomPrice = useMemo(() => {
     const currency = listing?.stay?.currency || listing?.currency || "INR";
     return price > 0 ? `${currency} ${price.toFixed(2)}` : "";
   }, [listing, isStay, isPropertyBased, slotsData, lowestRoomPrice]);
-}, [listing, isStay, isPropertyBased, slotsData, lowestRoomPrice]);
 
 const displayTime = isStay ? "night" : "person";
 
@@ -2609,7 +2598,6 @@ return (
               className={styles.receipt}
               items={items}
               hostData={hostData}
-              priceActual={displayPrice}
               priceActual={displayPrice}
               time={displayTime}
               avatar={listing?.hostAvatar || listing?.avatar}

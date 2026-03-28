@@ -331,16 +331,6 @@ const showTotal = isRoomBased
 
 const totalPerStay = price * (roomsNeeded || 1) * numberOfNights;
 
-// ─── Show total only when enough info is selected ────────────────────────
-const totalGuests = (guests?.adults || 0) + (guests?.children || 0);
-// For room-based: need a selected room AND guest count > 0
-// For property-based: always show after dates are selected
-const showTotal = isRoomBased
-  ? totalGuests > 0 && !!selectedRoom
-  : totalGuests > 0;
-
-const totalPerStay = price * (roomsNeeded || 1) * numberOfNights;
-
 // Always display stay prices in INR (₹) for this booking flow
 const formatPrice = (amount) => {
   return `₹${Number(amount).toLocaleString("en-IN")}`;
@@ -386,7 +376,6 @@ return (
       {startingFromPricePerNight > 0 && (
         <div className={styles.startingFromRow}>
           <span className={styles.startingFromLabel}>{isRoomBased && !selectedRoom ? "From" : ""}</span>
-          <span className={styles.startingFromLabel}>{isRoomBased && !selectedRoom ? "From" : ""}</span>
           <span className={styles.startingFromPrice}>{formatPrice(startingFromPricePerNight)}</span>
           <span className={styles.startingFromSuffix}>/ night</span>
         </div>
@@ -394,22 +383,12 @@ return (
       <div className={styles.priceRow}>
         <div className={styles.priceGroup}>
           {discountPercentage > 0 && showTotal && (
-            { discountPercentage > 0 && showTotal && (
               <div className={styles.oldPrice}>
                 <span className={styles.strikedPart}>{formatPrice(basePrice)}</span>
                 {totalExtraPrice > 0 && (
                   <span className={styles.plusPart}> + {formatPrice(totalExtraPrice)}</span>
                 )}
               </div>
-            )}
-          {showTotal && (
-            <div className={styles.currentPriceRow}>
-              <span className={styles.price}>{formatPrice(price)}</span>
-              <span className={styles.perNight}>/ night</span>
-              {discountPercentage > 0 && (
-                <span className={styles.discountBadge}>{discountPercentage}% OFF</span>
-              )}
-            </div>
           )}
           {showTotal && (
             <div className={styles.currentPriceRow}>
@@ -607,9 +586,6 @@ return (
                     : (filteredRoomsByGuests?.length > 0
                       ? "Select room"
                       : (checkInDate && checkOutDate ? "Loading rooms..." : "Select dates first"))}
-                      : (filteredRoomsByGuests?.length > 0
-                ? "Select room"
-                        : (checkInDate && checkOutDate ? "Loading rooms..." : "Select dates first"))}
               </div>
               <span className={cn(styles.guestChevron, showRoomTypeDropdown && styles.guestChevronOpen)}>
                 <Icon name="arrow-down" size="14" />
@@ -620,10 +596,6 @@ return (
             <div className={styles.roomTypeDropdown} role="listbox">
               {filteredRoomsByGuests.map((room) => {
                 const roomLabel = room.roomName || room.name || room.roomTypeName || `Room ${room.roomId || room.id}`;
-                const maxG = room.maxGuests != null
-                  ? Number(room.maxGuests)
-                  : (Number(room.maxAdults) || 0) + (Number(room.maxChildren) || 0);
-                const roomDisplayPrice = getMealPlanPriceForRoom(room);
                 const maxG = room.maxGuests != null
                   ? Number(room.maxGuests)
                   : (Number(room.maxAdults) || 0) + (Number(room.maxChildren) || 0);
@@ -643,11 +615,7 @@ return (
                     <span className={styles.roomTypeOptionName}>
                       {roomLabel}{maxG > 0 ? ` (Max ${maxG})` : ""}
                     </span>
-                    <span className={styles.roomTypeOptionName}>
-                      {roomLabel}{maxG > 0 ? ` (Max ${maxG})` : ""}
-                    </span>
                     <span className={styles.roomTypeOptionPrice}>
-                      {roomDisplayPrice > 0 ? `${formatPrice(roomDisplayPrice)}/night` : ""}
                       {roomDisplayPrice > 0 ? `${formatPrice(roomDisplayPrice)}/night` : ""}
                     </span>
                   </div>
@@ -686,50 +654,15 @@ return (
       {/* CTA button: 'Check Availability' only when dates set but rooms not yet fetched.
             Once rooms are available (availableRooms.length > 0), always 'Book Now'.
             Guest count changes do NOT affect this button. */}
-      {/* Room capacity message – add another room or no room available */}
-      {roomCapacityMessage && (
-        <div className={cn(
-          styles.roomCapacityMsg,
-          roomCapacityMessage.type === "warning" ? styles.roomCapacityWarn : styles.roomCapacityInfo
-        )}>
-          <Icon name={roomCapacityMessage.type === "warning" ? "alert-circle" : "info"} size="14" />
-          <span>{roomCapacityMessage.text}</span>
-        </div>
-      )}
-
-      {/* Total breakdown - shown only when selection is complete */}
-      {showTotal && numberOfNights > 0 && (
-        <div className={styles.totalBreakdown}>
-          <div className={styles.totalRow}>
-            <span>{formatPrice(price)} × {numberOfNights} night{numberOfNights !== 1 ? "s" : ""}{roomsNeeded > 1 ? ` × ${roomsNeeded} rooms` : ""}</span>
-            <span>{formatPrice(totalPerStay)}</span>
-          </div>
-          <div className={cn(styles.totalRow, styles.totalRowFinal)}>
-            <span>Total</span>
-            <span>{formatPrice(totalPerStay)}</span>
-          </div>
-        </div>
-      )}
-
-      {/* CTA button: 'Check Availability' only when dates set but rooms not yet fetched.
-            Once rooms are available (availableRooms.length > 0), always 'Book Now'.
-            Guest count changes do NOT affect this button. */}
       <button
         className={styles.checkBtn}
         onClick={() => {
           if (isRoomBased && !availabilityChecked && availableRooms?.length === 0) {
-            if (isRoomBased && !availabilityChecked && availableRooms?.length === 0) {
-              onCheckAvailability();
-            } else {
-              onBooking({ pricePerNight: price, totalNights: numberOfNights });
-            }
+            onCheckAvailability();
+          } else {
+            onBooking({ pricePerNight: price, totalNights: numberOfNights });
           }
-        }
-          disabled={
-          !checkInDate || !checkOutDate ||
-          availabilityLoading ||
-          (isRoomBased && availableRooms?.length > 0 && !selectedRoom)
-        }
+        }}
         disabled={
           !checkInDate || !checkOutDate ||
           availabilityLoading ||
@@ -741,10 +674,6 @@ return (
           : (isRoomBased && !availabilityChecked && availableRooms?.length === 0
             ? "Check Availability"
             : "Book Now")}
-        ? "Checking..."
-        : (isRoomBased && !availabilityChecked && availableRooms?.length === 0
-        ? "Check Availability"
-              : "Book Now")}
       </button>
 
       <p className={styles.noCharge}>You won&apos;t be charged yet</p>
@@ -1193,44 +1122,8 @@ const StayProduct = () => {
   // Extra-room logic: if selected room's max capacity < totalGuests, suggest more rooms
   const { roomsNeeded, roomCapacityMessage } = useMemo(() => {
     if (!selectedRoom || !isRoomBased) return { roomsNeeded: 1, roomCapacityMessage: null };
-    const isPropertyBased = stay?.bookingScope === "Property-Based" || stay?.bookingScope === "Property Based";
-    const isRoomBased = !isPropertyBased && (stay?.rooms?.length > 0 || stay?.roomTypes?.length > 0);
+    const totalGuests = (guests?.adults || 0) + (guests?.children || 0);
 
-    // Don't filter rooms by capacity — show ALL rooms.
-    // The roomCapacityMessage / extra-room logic will guide the user when
-    // guests exceed the selected room's capacity.
-    const filteredRoomsByGuests = availableRooms;
-
-    // Extra-room logic: if selected room's max capacity < totalGuests, suggest more rooms
-    const { roomsNeeded, roomCapacityMessage } = useMemo(() => {
-      if (!selectedRoom || !isRoomBased) return { roomsNeeded: 1, roomCapacityMessage: null };
-      const totalGuests = (guests?.adults || 0) + (guests?.children || 0);
-      const roomCapacity = selectedRoom.maxGuests != null
-        ? Number(selectedRoom.maxGuests)
-        : (Number(selectedRoom.maxAdults) || 0) + (Number(selectedRoom.maxChildren) || 0) || 2;
-      if (totalGuests <= roomCapacity) return { roomsNeeded: 1, roomCapacityMessage: null };
-
-      const needed = Math.ceil(totalGuests / roomCapacity);
-      // Check if that many rooms are available (units field)
-      const availableUnits = Number(selectedRoom.units || selectedRoom.availableRooms || selectedRoom.availableUnits || 99);
-      if (availableUnits >= needed) {
-        return {
-          roomsNeeded: needed,
-          roomCapacityMessage: {
-            type: "info",
-            text: `Your group of ${totalGuests} needs ${needed} room${needed > 1 ? "s" : ""} (max ${roomCapacity} guests/room). ${needed} rooms will be booked.`
-          }
-        };
-      } else {
-        return {
-          roomsNeeded: availableUnits,
-          roomCapacityMessage: {
-            type: "warning",
-            text: `Only ${availableUnits} room${availableUnits !== 1 ? "s" : ""} available for this type. Please reduce guest count or choose a different room.`
-          }
-        };
-      }
-    }, [selectedRoom, guests, isRoomBased]);
     const roomCapacity = selectedRoom.maxGuests != null
       ? Number(selectedRoom.maxGuests)
       : (Number(selectedRoom.maxAdults) || 0) + (Number(selectedRoom.maxChildren) || 0) || 2;
