@@ -102,9 +102,6 @@ const Description = ({ classSection, listing, hostData }) => {
     try {
       setStayAvailabilityLoading(true);
 
-      const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
-      const customerId = userInfo.customerId || userInfo.id || null;
-
       const stayId = listing?.stayId || listing?.stay_id || listing?.id;
       const checkInDate = selectedDate.format("YYYY-MM-DD");
       const checkOutDate = selectedEndDate.format("YYYY-MM-DD");
@@ -572,6 +569,7 @@ const Description = ({ classSection, listing, hostData }) => {
           maxSeats: apiSlot.capacity?.max_seats,
           pricePerPerson: apiSlot.pricing?.price_per_person,
           b2bRate: apiSlot.pricing?.b2b_rate,
+          groupBookingPricing: apiSlot.group_booking_pricing || [],
         };
       }
     }
@@ -626,11 +624,77 @@ const Description = ({ classSection, listing, hostData }) => {
         end_time: selectedTimeSlotData?.endTime,
         price_per_person: selectedTimeSlotData?.pricePerPerson,
         b2b_rate: selectedTimeSlotData?.b2bRate,
+        group_booking_pricing: selectedTimeSlotData?.groupBookingPricing || [],
       };
     }
 
     return null;
   }, [selectedDate, filteredAvailabilityData, selectedTimeSlotData, selectedTimeSlot, listing?.maxGuests, isStay]);
+
+  // Determine if listing has any future time slots (not fully expired)
+  const hasFutureTimeSlots = useMemo(() => {
+    const now = moment();
+    // Prefer slotsData (detailed slots from API), otherwise fallback to listing.timeSlots
+    const sourceSlots = Array.isArray(slotsData) && slotsData.length > 0 ? slotsData : (Array.isArray(listing?.timeSlots) ? listing.timeSlots : []);
+    if (!sourceSlots || sourceSlots.length === 0) return true; // If no slot info, assume available
+
+    for (const s of sourceSlots) {
+      if (!s) continue;
+      // Accept multiple possible field names
+      const endDateStr = s.endDate || s.end_date || s.schedule?.end_date || s.schedule?.endDate || s.eventEndDate || s.event_end_date;
+      const endTimeStr = s.endTime || s.end_time || s.schedule?.end_time || s.schedule?.endTime || s.endTime;
+
+      if (!endDateStr) {
+        // No end date — treat as available
+        return true;
+      }
+
+      const endDate = moment(String(endDateStr), "YYYY-MM-DD");
+      if (!endDate.isValid()) return true;
+
+      if (endDate.isAfter(now, 'day')) {
+        return true; // future date available
+      }
+
+      if (endDate.isSame(now, 'day')) {
+        // If same-day, check end time if available
+        if (!endTimeStr) return true; // no time specified -> available today
+        // Parse time in HH:mm or h:mm a formats
+        const endTime = moment(String(endTimeStr), ["HH:mm", "h:mm a", "HH:mm:ss"]);
+        if (!endTime.isValid()) return true; // can't parse -> be permissive
+        // Build a datetime on the same date
+        const endDateTime = moment(endDate.format("YYYY-MM-DD") + ' ' + endTime.format("HH:mm"), "YYYY-MM-DD HH:mm");
+        if (endDateTime.isAfter(now)) return true;
+      }
+      // otherwise this slot is expired — continue to check other slots
+    }
+
+    // No slot looked available
+    return false;
+  }, [slotsData, listing?.timeSlots]);
+
+  // Check if the currently selected date/slot has already passed (for disabling reserve)
+  const selectedSlotPassed = useMemo(() => {
+    if (!selectedDateAvailability) return false;
+    const dateStr = selectedDateAvailability.date || selectedDateAvailability.dateStr;
+    const endTimeStr = selectedDateAvailability.end_time || selectedDateAvailability.endTime;
+    if (!dateStr) return false;
+    const dateMoment = moment(String(dateStr), "YYYY-MM-DD");
+    if (!dateMoment.isValid()) return false;
+    // If date is after today -> not passed
+    const now = moment();
+    if (dateMoment.isAfter(now, 'day')) return false;
+    if (dateMoment.isBefore(now, 'day')) return true;
+    // date is today -> check end time
+    if (!endTimeStr) {
+      // No end time -> assume still available
+      return false;
+    }
+    const endTime = moment(String(endTimeStr), ["HH:mm", "h:mm a", "HH:mm:ss"]);
+    if (!endTime.isValid()) return false;
+    const endDateTime = moment(dateMoment.format("YYYY-MM-DD") + ' ' + endTime.format("HH:mm"), "YYYY-MM-DD HH:mm");
+    return endDateTime.isBefore(now);
+  }, [selectedDateAvailability]);
 
   // Get the selected timeSlot object for display
   const selectedTimeSlotDisplay = useMemo(() => {
@@ -839,13 +903,26 @@ const Description = ({ classSection, listing, hostData }) => {
     const guestCount = getGuestCount(guests);
     const billableGuestCount = getBillableGuestCount(guests);
     // Use availability data if available, then selected slot, then fallback to listing data
-    const pricePerPerson = selectedDateAvailability?.price_per_person
+    let pricePerPerson = selectedDateAvailability?.price_per_person
       ? parseFloat(selectedDateAvailability.price_per_person)
       : (selectedTimeSlotData?.pricePerPerson
         ? parseFloat(selectedTimeSlotData.pricePerPerson)
         : (listing?.timeSlots?.[0]?.pricePerPerson
           ? parseFloat(listing.timeSlots[0].pricePerPerson)
           : null));
+
+    // Handle group pricing: override if guestCount falls in a defined range
+    const groupPricing = selectedDateAvailability?.group_booking_pricing ||
+                         selectedTimeSlotData?.groupBookingPricing;
+    if (groupPricing && Array.isArray(groupPricing) && groupPricing.length > 0) {
+      const match = groupPricing.find(p =>
+        guestCount >= (p.group_count_from || p.groupCountFrom || 0) &&
+        guestCount <= (p.group_count_upto || p.groupCountUpto || Infinity)
+      );
+      if (match && (match.price_per_person || match.pricePerPerson)) {
+        pricePerPerson = parseFloat(match.price_per_person || match.pricePerPerson);
+      }
+    }
 
     // For stays: calculate actual nights between check-in and check-out
     const nightsCount = (isStay && selectedDate && selectedEndDate)
@@ -934,11 +1011,15 @@ const Description = ({ classSection, listing, hostData }) => {
     }
 
     const subtotal = basePriceAmount + addOnsPrice;
-    const discountPercentage = parseFloat(
-      listing?.pricing?.discount?.total ||
-      listing?.pricing?.discount?.percentage ||
+    
+    // Check for API-level discount first, then fall back to billingConfig if needed
+    const apiDiscountPercentage = parseFloat(
+      listing?.pricing?.discount?.total || 
+      listing?.pricing?.discount?.percentage || 
       0
-    ) || 0;
+    );
+    const discountPercentage = apiDiscountPercentage || 0;
+    
     const discountAmount = (subtotal * discountPercentage) / 100;
     const taxableAmount = Math.max(subtotal - discountAmount, 0);
 
@@ -996,7 +1077,18 @@ const Description = ({ classSection, listing, hostData }) => {
 
     // Calculate and add taxes
     let totalTaxAmount = 0;
-    if (billingConfig?.taxes && Array.isArray(billingConfig.taxes)) {
+    const apiTaxPercentage = parseFloat(listing?.pricing?.tax?.total || 0);
+    
+    if (apiTaxPercentage > 0) {
+      const taxAmount = (taxableAmount * apiTaxPercentage) / 100;
+      totalTaxAmount = taxAmount;
+      receiptData.push({
+        title: `Tax (${apiTaxPercentage}%)`,
+        content: `${currency} ${taxAmount.toFixed(2)}`,
+        kind: "tax",
+        showInCheckout: true,
+      });
+    } else if (billingConfig?.taxes && Array.isArray(billingConfig.taxes)) {
       const enabledTaxes = billingConfig.taxes.filter(tax => tax.isEnabled);
       enabledTaxes.forEach(tax => {
         const taxAmount = (taxableAmount * parseFloat(tax.currentRate || 0)) / 100;
@@ -1010,7 +1102,32 @@ const Description = ({ classSection, listing, hostData }) => {
       });
     }
 
-    const total = taxableAmount + totalTaxAmount;
+    // Calculate Platform Commission (Service fee)
+    let pricingPlatformCommission = 0;
+    const apiCommissionPercentage = parseFloat(listing?.pricing?.commission || 0);
+    
+    if (apiCommissionPercentage > 0) {
+      pricingPlatformCommission = (subtotal * apiCommissionPercentage) / 100;
+      receiptData.push({
+        title: `Service fee (${apiCommissionPercentage}%)`,
+        content: `${currency} ${pricingPlatformCommission.toFixed(2)}`,
+        kind: "commission",
+        showInCheckout: true,
+      });
+    } else if (billingConfig?.commissions && Array.isArray(billingConfig.commissions)) {
+      const platformFee = billingConfig.commissions.find(c => c.type === "Platform Fee" && c.isEnabled);
+      if (platformFee) {
+        pricingPlatformCommission = (subtotal * parseFloat(platformFee.currentRate || 0)) / 100;
+        receiptData.push({
+          title: "Service fee",
+          content: `${currency} ${pricingPlatformCommission.toFixed(2)}`,
+          kind: "commission",
+          showInCheckout: true,
+        });
+      }
+    }
+
+    const total = taxableAmount + totalTaxAmount + pricingPlatformCommission;
 
     receiptData.push({
       title: "Total",
@@ -1038,8 +1155,12 @@ const Description = ({ classSection, listing, hostData }) => {
         addonsTotal: addOnsPrice,
         subtotal,
         discountPercentage,
-        discountAmount,
-        taxAmount: totalTaxAmount,
+        discount: discountAmount,
+        tax: totalTaxAmount,
+        taxRate: apiTaxPercentage || 0,
+        commission: pricingPlatformCommission,
+        commissionRate: apiCommissionPercentage || 0,
+        pricePerPerson: pricePerPerson,
         total,
       }
     };
@@ -1249,6 +1370,16 @@ const Description = ({ classSection, listing, hostData }) => {
     e.preventDefault();
     e.stopPropagation();
 
+    // Prevent reserve if selected slot has already passed or no future slots exist
+    if (selectedSlotPassed) {
+      alert("The selected time slot has already passed. Please choose another date or time.");
+      return;
+    }
+    if (!hasFutureTimeSlots) {
+      alert("No upcoming time slots are available for this experience.");
+      return;
+    }
+
     if (reserveSubmitLockRef.current) {
       return;
     }
@@ -1355,12 +1486,27 @@ const Description = ({ classSection, listing, hostData }) => {
       }
 
       // Calculate base price amount
-      const guestCount = billableGuests;
-      const pricePerPerson = selectedDateAvailability?.price_per_person
+      const guestCountForPricing = billableGuests;
+      let pricePerPerson = selectedDateAvailability?.price_per_person
         ? parseFloat(selectedDateAvailability.price_per_person)
         : (listing?.timeSlots?.[0]?.pricePerPerson
           ? parseFloat(listing.timeSlots[0].pricePerPerson)
           : null);
+
+      // Re-apply Group Pricing match logic here
+      const groupPricingRules = selectedDateAvailability?.group_booking_pricing || 
+                               selectedTimeSlotData?.groupBookingPricing;
+      if (groupPricingRules && Array.isArray(groupPricingRules) && groupPricingRules.length > 0) {
+        const totalGuests = getGuestCount(guests);
+        const match = groupPricingRules.find(p => 
+          totalGuests >= (p.group_count_from || p.groupCountFrom || 0) && 
+          totalGuests <= (p.group_count_upto || p.groupCountUpto || Infinity)
+        );
+        if (match && (match.price_per_person || match.pricePerPerson)) {
+          pricePerPerson = parseFloat(match.price_per_person || match.pricePerPerson);
+        }
+      }
+
       const pricePerNight = selectedDateAvailability?.b2b_rate
         ? parseFloat(selectedDateAvailability.b2b_rate)
         : (listing?.timeSlots?.[0]?.b2bRate
@@ -1370,7 +1516,7 @@ const Description = ({ classSection, listing, hostData }) => {
 
       let pricingBaseAmount = 0;
       if (pricePerPerson) {
-        pricingBaseAmount = pricePerPerson * guestCount * nights;
+        pricingBaseAmount = pricePerPerson * guestCountForPricing * nights;
       } else {
         pricingBaseAmount = pricePerNight * nights;
       }
@@ -1379,40 +1525,44 @@ const Description = ({ classSection, listing, hostData }) => {
       const pricingAddonsTotal = addOnsTotal || 0;
       const pricingSubtotal = pricingBaseAmount + pricingAddonsTotal;
 
-      // Calculate platform commission (from billing config)
+      // Calculate platform commission (from API pricing or billing config)
       let pricingPlatformCommission = 0;
-      if (billingConfig?.commissions && Array.isArray(billingConfig.commissions)) {
+      const apiCommissionPercentage = parseFloat(listing?.pricing?.commission || 0);
+      if (apiCommissionPercentage > 0) {
+        pricingPlatformCommission = (pricingSubtotal * apiCommissionPercentage) / 100;
+      } else if (billingConfig?.commissions && Array.isArray(billingConfig.commissions)) {
         const platformFee = billingConfig.commissions.find(c => c.type === "Platform Fee" && c.isEnabled);
         if (platformFee) {
           pricingPlatformCommission = (pricingSubtotal * parseFloat(platformFee.currentRate || 0)) / 100;
         }
       }
 
-      const pricingDiscountAmount = (pricingSubtotal * (parseFloat(
+      const apiDiscountPercentage = parseFloat(
         listing?.pricing?.discount?.total ||
         listing?.pricing?.discount?.percentage ||
         0
-      ) || 0)) / 100;
+      );
+      const pricingDiscountAmount = (pricingSubtotal * apiDiscountPercentage) / 100;
       const pricingTaxableAmount = Math.max(pricingSubtotal - pricingDiscountAmount, 0);
 
       // Calculate tax amount
       let pricingTaxAmount = 0;
-      if (billingConfig?.taxes && Array.isArray(billingConfig.taxes)) {
+      const apiTaxPercentage = parseFloat(listing?.pricing?.tax?.total || 0);
+      if (apiTaxPercentage > 0) {
+        pricingTaxAmount = (pricingTaxableAmount * apiTaxPercentage) / 100;
+      } else if (billingConfig?.taxes && Array.isArray(billingConfig.taxes)) {
         const enabledTaxes = billingConfig.taxes.filter(tax => tax.isEnabled);
         enabledTaxes.forEach(tax => {
-          const taxAmount = (pricingTaxableAmount * parseFloat(tax.currentRate || 0)) / 100;
-          pricingTaxAmount += taxAmount;
+          pricingTaxAmount += (pricingTaxableAmount * parseFloat(tax.currentRate || 0)) / 100;
         });
       }
 
-      // Calculate total price (subtotal + taxes - discounts, excluding platform commission)
-      // eslint-disable-next-line no-unused-vars
-      const pricingTotal = pricingTaxableAmount + pricingTaxAmount;
+      // Calculate total price (subtotal + taxes - discounts + platform commission)
+      const pricingTotal = pricingTaxableAmount + pricingTaxAmount + pricingPlatformCommission;
 
       // Calculate host earnings (what the host receives: subtotal - platform commission)
-      const calculatedHostEarnings = (pricingSubtotal || 5500) - (pricingPlatformCommission || 550);
-      // eslint-disable-next-line no-unused-vars
-      const hostEarnings = isNaN(calculatedHostEarnings) ? 4950 : calculatedHostEarnings;
+      const calculatedHostEarnings = pricingSubtotal - pricingPlatformCommission;
+      const hostEarnings = isNaN(calculatedHostEarnings) ? pricingSubtotal : calculatedHostEarnings;
 
       // Calculate price per unit (price per person or price per night)
       // eslint-disable-next-line no-unused-vars
@@ -1470,6 +1620,15 @@ const Description = ({ classSection, listing, hostData }) => {
         bookingTime: bookingTime, // "HH:mm:ss"
         bookingSlotId: bookingSlotId || 0,
         guestCount: billableGuests,
+        // Pricing details
+        basePrice: pricingBaseAmount,
+        addonsTotal: pricingAddonsTotal,
+        taxAmount: pricingTaxAmount,
+        taxRate: apiTaxPercentage,
+        platformFee: pricingPlatformCommission,
+        commissionRate: apiCommissionPercentage,
+        discountAmount: pricingDiscountAmount,
+        totalPrice: pricingTotal,
         customer: {
           name: customerName || "Guest User",
           email: customerEmail || "guest@example.com",
@@ -2503,18 +2662,24 @@ const Description = ({ classSection, listing, hostData }) => {
                       });
                     })();
                     const hasTimeSlots = slotsForSelectedDay.length > 0;
+                    // Enforce workflow: date -> time -> guest for experiences (non-stays).
+                    // Time selection is only allowed when a date is selected for experiences.
+                    const canOpenTime = isStay ? hasTimeSlots : (selectedDate && hasTimeSlots);
                     return (
                       <div ref={timeItemRef} style={{ position: 'relative' }}>
                         <div
                           className={receiptStyles.item}
-                          onClick={hasTimeSlots ? () => handleOpenDateTime(1) : undefined}
-                          role={hasTimeSlots ? "button" : undefined}
+                          onClick={canOpenTime ? () => handleOpenDateTime(1) : undefined}
+                          role={canOpenTime ? "button" : undefined}
                           style={{
-                            cursor: hasTimeSlots ? 'pointer' : 'not-allowed',
-                            opacity: hasTimeSlots ? 1 : 0.5,
-                            pointerEvents: hasTimeSlots ? 'auto' : 'none',
+                            cursor: canOpenTime ? 'pointer' : 'not-allowed',
+                            opacity: canOpenTime ? 1 : 0.5,
+                            pointerEvents: canOpenTime ? 'auto' : 'none',
                           }}
-                          title={hasTimeSlots ? undefined : "No time slots available for the selected date"}
+                          title={
+                            !hasTimeSlots ? "No time slots available for the selected date" :
+                            (!selectedDate && !isStay ? "Please select a date first" : undefined)
+                          }
                         >
                           <div className={receiptStyles.icon}>
                             <Icon name={item.icon} size="24" />
@@ -2525,7 +2690,7 @@ const Description = ({ classSection, listing, hostData }) => {
                           </div>
                         </div>
                         <TimeSlotsPicker
-                          visible={showTimeSlots && hasTimeSlots}
+                          visible={showTimeSlots && hasTimeSlots && (isStay || !!selectedDate)}
                           onClose={() => setShowTimeSlots(false)}
                           onTimeSelect={handleTimeSelect}
                           selectedTime={selectedTimeSlot}
@@ -2645,8 +2810,12 @@ const Description = ({ classSection, listing, hostData }) => {
                       type="button"
                       className={cn("button", styles.button)}
                       onClick={handleReserveClick}
-                      disabled={!isReserveEnabled || isReserveSubmitting}
-                      title={!isReserveEnabled ? "Please select date, time slot, and guests" : ""}
+                      disabled={!isReserveEnabled || isReserveSubmitting || selectedSlotPassed || !hasFutureTimeSlots}
+                      title={
+                        !isReserveEnabled ? "Please select date, time slot, and guests" :
+                        (!hasFutureTimeSlots ? "No upcoming time slots available for this experience" :
+                          (selectedSlotPassed ? "Selected time slot has already passed" : ""))
+                      }
                     >
                       <span>{isReserveSubmitting ? "Processing..." : (isFullyBooked ? "Fully Booked" : "Reserve")}</span>
                       <Icon name="bag" size="16" />
@@ -2656,6 +2825,18 @@ const Description = ({ classSection, listing, hostData }) => {
                 {isFullyBooked && (
                   <div style={{ color: "#FF6A55", marginTop: 12, fontSize: 13, fontWeight: "500", textAlign: "center" }}>
                     This slot is fully booked. Please select another date or time.
+                  </div>
+                )}
+                {/* New warnings for passed/absent slots */}
+                {!isFullyBooked && !hasFutureTimeSlots && (
+                  <div style={{ color: "#FF6A55", marginTop: 12, fontSize: 13, fontWeight: "600", textAlign: "center" }}>
+                    No upcoming time slots available for this experience.
+                    Please contact the host or check back later.
+                  </div>
+                )}
+                {!isFullyBooked && selectedSlotPassed && (
+                  <div style={{ color: "#FF6A55", marginTop: 12, fontSize: 13, fontWeight: "600", textAlign: "center" }}>
+                    The selected time slot has already passed for the chosen date. Please select another date or time.
                   </div>
                 )}
                 {!isFullyBooked && selectedDate && selectedTimeSlot && selectedDateAvailability && getGuestCount(guests) > (selectedDateAvailability.available_seats ?? 999) && (
