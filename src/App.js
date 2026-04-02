@@ -3,7 +3,6 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import "react-dates/lib/css/_datepicker.css";
 import "./styles/app.sass";
 import "./eventFlowTheme/assets/css/eventflow.css";
-import "react-modal-video/css/modal-video.css";
 import Page from "./components/Page";  //njj
 import ExperienceCategory from "./screens/ExperienceCategory";
 import ExperienceProduct from "./screens/ExperienceProduct";
@@ -37,6 +36,8 @@ import ListYourProperty from "./screens/ListYourProperty";
 import FleetHome from "./screens/FleetHome";
 import Listings from "./pages/listings";
 import EventProduct from "./screens/EventProduct";
+import EventFlowHome from "./eventFlowTheme/pages/home";
+import EventDetailsPage from "./eventFlowTheme/pages/event-details";
 import EventFlowHome from "./eventFlowTheme/pages/home";
 import EventDetailsPage from "./eventFlowTheme/pages/event-details";
 import StayProduct from "./screens/StayProduct";
@@ -86,6 +87,15 @@ function App() {
             render={() => (
               <Page separatorHeader>
                 <ExperienceProduct />
+              </Page>
+            )}
+          />
+          <Route
+            exact
+            path="/event-product"
+            render={() => (
+              <Page separatorHeader>
+                <EventProduct />
               </Page>
             )}
           />
@@ -348,53 +358,62 @@ function App() {
             render={() => (
               <Page separatorHeader fooferHide>
                 <EventFlowHome />
-              </Page>
+                <Page separatorHeader fooferHide>
+                  <EventFlowHome />
+                </Page>
             )}
           />
-          <Route
-            exact
-            path="/event-details"
-            render={() => (
-                <EventDetailsPage />
-            )}
-          />
-          <Route
-            exact
-            path="/stays"
-            render={() => (
-              <Page separatorHeader>
-                <StayProduct />
-              </Page>
-            )}
-          />
-          <Route
-            exact
-            path="/stay-details"
-            render={() => (
-              <Page separatorHeader>
-                <StayDetails />
-              </Page>
-            )}
-          />
-          <Route
-            exact
-            path="/food-details"
-            render={() => (
-              <Page separatorHeader>
-                <FoodDetails />
-              </Page>
-            )}
-          />
-          <Route
-            exact
-            path="/place-details"
-            render={() => (
-              <Page separatorHeader>
-                <PlaceDetails />
-              </Page>
-            )}
-          />
-        </Switch>
+                <Route
+                  exact
+                  path="/event-details"
+                  render={() => (
+                    <EventDetailsPage />
+                  )}
+                />
+                <Route
+                  exact
+                  path="/event-details"
+                  render={() => (
+                    <EventDetailsPage />
+                  )}
+                />
+                <Route
+                  exact
+                  path="/stays"
+                  render={() => (
+                    <Page separatorHeader>
+                      <StayProduct />
+                    </Page>
+                  )}
+                />
+                <Route
+                  exact
+                  path="/stay-details"
+                  render={() => (
+                    <Page separatorHeader>
+                      <StayDetails />
+                    </Page>
+                  )}
+                />
+                <Route
+                  exact
+                  path="/food-details"
+                  render={() => (
+                    <Page separatorHeader>
+                      <FoodDetails />
+                    </Page>
+                  )}
+                />
+                <Route
+                  exact
+                  path="/place-details"
+                  render={() => (
+                    <Page separatorHeader>
+                      <PlaceDetails />
+                    </Page>
+                  )}
+                />
+              </Switch>
       </Router>
     </GoogleOAuthProvider>
   );
