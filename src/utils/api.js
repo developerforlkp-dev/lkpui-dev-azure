@@ -5,7 +5,7 @@ const normalizeBaseUrl = (url) => (url ? url.replace(/\/+$/, "") : url);
 
 
 const API_BASE_URL = normalizeBaseUrl(process.env.REACT_APP_API_URL) ||
-  "https://lkp-qa-backend.azurewebsites.net/api";
+  "https://lkp-prod-backend.azurewebsites.net/api";
 
 export const DEFAULT_API_BASE_URL = (() => {
   return API_BASE_URL;
