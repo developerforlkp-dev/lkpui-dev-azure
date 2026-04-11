@@ -356,8 +356,11 @@ export const HomepageSectionCard = ({ section, listings, className }) => {
   // Use cardStyle exactly as provided by API (case-sensitive)
   const cardStyle = section.cardStyle || "CARD_RECT_VERTICAL_DETAIL";
 
-  // Log section card style for debugging
-  console.log(`📋 Section: "${section.sectionTitle}" → Card Style: ${cardStyle}`);
+  // Log section details for debugging the "Starting From" price
+  console.log(`[CardStyles] 📋 Rendering Section: "${section.sectionTitle}"`);
+  console.log(`[CardStyles] 💰 priceStartingFrom:`, section.priceStartingFrom);
+  console.log(`[CardStyles] 🎨 Applied Card Style:`, cardStyle);
+  console.log(`[CardStyles] 📦 Section Data:`, section);
 
   // Map API cardStyle values to component card styles (case-sensitive matching)
   // Supports both new descriptive names and old names for backward compatibility
