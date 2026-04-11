@@ -5,10 +5,11 @@ const normalizeBaseUrl = (url) => (url ? url.replace(/\/+$/, "") : url);
 
 
 const API_BASE_URL = normalizeBaseUrl(process.env.REACT_APP_API_URL) ||
-  "https://lkp-qa-backend.azurewebsites.net/api";
+  "http://api.qa.littleknownplanet.com/api";
 
 export const DEFAULT_API_BASE_URL = (() => {
   return API_BASE_URL;
+
 })();
 
 
@@ -398,6 +399,45 @@ export const loginWithGoogle = async (idToken) => {
     console.error("  - Response data:", error.response?.data);
     console.error("  - Full error:", error);
     console.error("  - Check Network tab for failed request");
+    throw error;
+  }
+};
+
+// ✅ Customer Profile API functions
+export const getCustomerProfile = async () => {
+  try {
+    const response = await ListingsAPI.get("/customers/auth/me");
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error fetching customer profile:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const updateCustomerProfile = async (profileData) => {
+  try {
+    const response = await ListingsAPI.put("/customers/auth/me", profileData);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error updating customer profile:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+// Image upload for avatar
+export const uploadCustomerAvatar = async (file) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const response = await ListingsAPI.post("/customers/auth/me/avatar", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error uploading customer avatar:", error.response?.data || error.message);
     throw error;
   }
 };
