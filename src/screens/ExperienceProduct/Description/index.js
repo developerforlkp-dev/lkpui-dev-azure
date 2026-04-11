@@ -138,8 +138,18 @@ const Description = ({ classSection, listing, hostData }) => {
 
         if (selectedRoomObject.mealPlanPricing && selectedRoomObject.mealPlanPricing[mealPlanCode]) {
           const mp = selectedRoomObject.mealPlanPricing[mealPlanCode];
-          // Use b2cPrice ONLY — never fall back to b2bPrice for customer billing
-          basePrice = parseFloat(mp.b2cPrice || mp.price || 0);
+          // Determine if the check-in date falls within any seasonal period
+          const checkIn = selectedDate.format("YYYY-MM-DD");
+          const activeSeason = listing?.seasonalPeriods?.find(p =>
+            moment(checkIn).isSameOrAfter(p.startDate) && moment(checkIn).isSameOrBefore(p.endDate)
+          );
+
+          if (activeSeason && mp.hikePrice && parseFloat(mp.hikePrice) > 0) {
+            basePrice = parseFloat(mp.hikePrice);
+          } else {
+            // Use b2cPrice ONLY — never fall back to b2bPrice for customer billing
+            basePrice = parseFloat(mp.b2cPrice || mp.price || 0);
+          }
           if (mp.extraAdultPrice) extraAdultPrice = parseFloat(mp.extraAdultPrice);
           if (mp.extraChildPrice) extraChildPrice = parseFloat(mp.extraChildPrice);
         } else {
@@ -815,15 +825,28 @@ const lowestRoomPrice = useMemo(() => {
   const rooms = listing.rooms || listing.roomTypes || listing.room_types || listing.stay?.rooms || listing.stayDetails?.rooms || [];
   if (!Array.isArray(rooms) || rooms.length === 0) return null;
 
+  // Determine if the check-in date falls within any seasonal period
+  const checkIn = selectedDate ? selectedDate.format("YYYY-MM-DD") : null;
+  const activeSeason = (checkIn && listing?.seasonalPeriods)
+    ? listing.seasonalPeriods.find(p =>
+      moment(checkIn).isSameOrAfter(p.startDate) && moment(checkIn).isSameOrBefore(p.endDate)
+    )
+    : null;
+
   let minB2cMealPrice = Infinity;
   let minGeneralB2cPrice = Infinity;
 
   rooms.forEach((room) => {
-    // 1. Check nested mealPlanPricing — use ONLY b2cPrice (never b2bPrice for customer display)
+    // 1. Check nested mealPlanPricing
     if (room.mealPlanPricing && typeof room.mealPlanPricing === 'object') {
       Object.values(room.mealPlanPricing).forEach((plan) => {
         if (plan) {
-          const val = parseFloat(plan.b2cPrice || plan.price || plan.amount || 0);
+          let val = 0;
+          if (activeSeason && plan?.hikePrice && parseFloat(plan.hikePrice) > 0) {
+            val = parseFloat(plan.hikePrice);
+          } else {
+            val = parseFloat(plan.b2cPrice || plan.price || plan.amount || 0);
+          }
           if (!isNaN(val) && val > 0 && val < minB2cMealPrice) {
             minB2cMealPrice = val;
           }
@@ -831,7 +854,7 @@ const lowestRoomPrice = useMemo(() => {
       });
     }
 
-    // 2. Flat meal plan b2c prices
+    // 2. Flat meal plan b2c prices (Legacy fields - usually don't have hikePrice equivalent here)
     const mealPrices = [room.cpPrice, room.mapPrice, room.apPrice, room.cp_price, room.map_price, room.ap_price];
     mealPrices.forEach((p) => {
       const val = parseFloat(p);
@@ -840,7 +863,7 @@ const lowestRoomPrice = useMemo(() => {
       }
     });
 
-    // 3. General b2cPrice (never b2bPrice)
+    // 3. General b2cPrice
     const generalB2cPrices = [room.b2cPrice, room.b2c_price, room.price, room.amount];
     generalB2cPrices.forEach((p) => {
       const val = parseFloat(p);
@@ -853,22 +876,18 @@ const lowestRoomPrice = useMemo(() => {
   const finalPrice = minB2cMealPrice !== Infinity ? minB2cMealPrice : (minGeneralB2cPrice !== Infinity ? minGeneralB2cPrice : null);
 
   if (finalPrice !== null || rooms.length > 0) {
-      console.log(`📊 API Pricing Debug [Listing: ${listing?.id || listing?.stayId || 'unknown'}]:`, {
-        isStay,
-        foundRoomsCount: rooms.length,
-        minB2cMealPrice: minB2cMealPrice === Infinity ? 'N/A' : minB2cMealPrice,
-        minGeneralB2cPrice: minGeneralB2cPrice === Infinity ? 'N/A' : minGeneralB2cPrice,
-        selectedLowestB2cPrice: finalPrice,
-        firstRoomSample: rooms[0] ? {
-          name: rooms[0].roomName || rooms[0].name,
-          mealPlanPricing: rooms[0].mealPlanPricing,
-          b2cPrice: rooms[0].b2cPrice
-        } : 'empty'
-      });
-    }
+    console.log(`📊 API Pricing Debug [Listing: ${listing?.id || listing?.stayId || 'unknown'}]:`, {
+      isStay,
+      foundRoomsCount: rooms.length,
+      isSeasonal: !!activeSeason,
+      minB2cMealPrice: minB2cMealPrice === Infinity ? 'N/A' : minB2cMealPrice,
+      minGeneralB2cPrice: minGeneralB2cPrice === Infinity ? 'N/A' : minGeneralB2cPrice,
+      selectedLowestB2cPrice: finalPrice,
+    });
+  }
 
-    return finalPrice;
-  }, [listing, isStay]);
+  return finalPrice;
+}, [listing, isStay, selectedDate]);
 
   const { addOnsTotal, finalTotal, receipt, priceInfo, pricingBreakdown } = useMemo(() => {
     // Determine guest counts early so individual-priced addons can be multiplied per guest
@@ -963,9 +982,23 @@ const lowestRoomPrice = useMemo(() => {
         String(r.roomId ?? r.room_id ?? r.roomTypeId ?? r.id ?? r.code) === String(staySelectedRoomType)
       );
       if (selRoom?.mealPlanPricing) {
+        // Determine if the check-in date falls within any seasonal period
+        const checkIn = selectedDate ? selectedDate.format("YYYY-MM-DD") : null;
+        const activeSeason = (checkIn && listing?.seasonalPeriods)
+          ? listing.seasonalPeriods.find(p =>
+            moment(checkIn).isSameOrAfter(p.startDate) && moment(checkIn).isSameOrBefore(p.endDate)
+          )
+          : null;
+
         const plans = Object.values(selRoom.mealPlanPricing);
         pricePerNight = plans.reduce((best, plan) => {
-          const val = parseFloat(plan?.b2cPrice || plan?.price || 0);
+          // If an active season is found, prioritize hikePrice over b2cPrice
+          let val = 0;
+          if (activeSeason && plan?.hikePrice && parseFloat(plan.hikePrice) > 0) {
+            val = parseFloat(plan.hikePrice);
+          } else {
+            val = parseFloat(plan?.b2cPrice || plan?.price || 0);
+          }
           return val > 0 && (best === 0 || val < best) ? val : best;
         }, 0);
       }
