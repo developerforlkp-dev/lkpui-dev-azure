@@ -23,7 +23,10 @@ const PersonalInfo = () => {
     email: "",
     phone: "",
     avatarUrl: "",
-    countryCode: "+91"
+    countryCode: "+91",
+    isEmailVerified: false,
+    isPhoneVerified: false,
+    customerId: null
   });
 
   useEffect(() => {
@@ -35,14 +38,28 @@ const PersonalInfo = () => {
       setLoading(true);
       const data = await getCustomerProfile();
       if (data && data.customer) {
-        const { firstName, lastName, email, phone, avatarUrl, countryCode } = data.customer;
+        const { 
+          firstName, 
+          lastName, 
+          email, 
+          phone, 
+          avatarUrl, 
+          countryCode, 
+          isEmailVerified, 
+          isPhoneVerified, 
+          customerId 
+        } = data.customer;
+        
         setProfile({
           firstName: firstName || "",
           lastName: lastName || "",
           email: email || "",
           phone: phone || "",
           avatarUrl: avatarUrl || "",
-          countryCode: countryCode || "+91"
+          countryCode: countryCode || "+91",
+          isEmailVerified: !!isEmailVerified,
+          isPhoneVerified: !!isPhoneVerified,
+          customerId: customerId || null
         });
       }
     } catch (error) {
@@ -61,7 +78,18 @@ const PersonalInfo = () => {
     e.preventDefault();
     try {
       setUpdating(true);
-      await updateCustomerProfile(profile);
+      
+      // Strictly only 6 fields as requested by the backend spec
+      const requestBody = {
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        email: profile.email,
+        phone: profile.phone,
+        countryCode: profile.countryCode,
+        avatarUrl: profile.avatarUrl
+      };
+
+      await updateCustomerProfile(requestBody);
       alert("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -178,9 +206,17 @@ const PersonalInfo = () => {
             </div>
             <div className={styles.row}>
               <div className={styles.col}>
+                <div className={styles.labelWrapper}>
+                  <div className={styles.label}>Phone</div>
+                  {profile.isPhoneVerified && (
+                    <div className={styles.verifiedBadge}>
+                      <Icon name="check-circle" size="14" />
+                      <span>Verified</span>
+                    </div>
+                  )}
+                </div>
                 <TextInput
                   className={styles.field}
-                  label="Phone"
                   name="phone"
                   value={profile.phone}
                   onChange={handleChange}
@@ -190,9 +226,17 @@ const PersonalInfo = () => {
                 />
               </div>
               <div className={styles.col}>
+                <div className={styles.labelWrapper}>
+                  <div className={styles.label}>Email</div>
+                  {profile.isEmailVerified && (
+                    <div className={styles.verifiedBadge}>
+                      <Icon name="check-circle" size="14" />
+                      <span>Verified</span>
+                    </div>
+                  )}
+                </div>
                 <TextInput
                   className={styles.field}
-                  label="Email"
                   name="email"
                   value={profile.email}
                   onChange={handleChange}

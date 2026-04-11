@@ -180,6 +180,15 @@ const FleetHome = () => {
 
         // Step 2: Fetch listings for each section in parallel
         const sectionPromises = sortedSections.map(async (section) => {
+          // Use cardStyle exactly as provided by API (case-sensitive)
+          const cardStyle = section.cardStyle || "CARD_RECT_VERTICAL_DETAIL";
+
+          // Log section card style for debugging
+          console.log(`📋 Section: "${section.sectionTitle}" → Card Style: ${cardStyle}`);
+          console.log(`💰 Price displayed check: "${section.priceStartingFrom}"`);
+          console.log(`📦 Full section object:`, section);
+          console.log(`🔍 Section ${section.sectionId} - "${section.sectionTitle}" full data:`, section);
+          console.log(`💰 priceStartingFrom for section ${section.sectionId}:`, section.priceStartingFrom);
           try {
             const sectionData = await getHomepageSectionListings(section.sectionId, 12, 0);
             console.log(`✅ Section ${section.sectionId} data:`, sectionData);
