@@ -178,6 +178,9 @@ const BookingSidebar = ({
   onBooking,
   numberOfNights,
   roomsNeeded,
+  roomsCount,
+  setRoomsCount,
+  minRoomsNeeded,
   roomCapacityMessage
 }) => {
   const [showGuestPicker, setShowGuestPicker] = useState(false);
@@ -637,6 +640,39 @@ return (
         </div>
       )}
 
+      {/* Redesigned Manual room count selector */}
+      {isRoomBased && selectedRoom && (
+        <div className={styles.roomSelectorField}>
+          <div className={styles.roomSelectorCard}>
+            <div className={styles.guestLabel}>NUMBER OF ROOMS</div>
+            <div className={styles.guestValueRow}>
+              <div className={styles.guestValue}>
+                {roomsCount} {roomsCount === 1 ? "Room" : "Rooms"}
+              </div>
+              <div className={styles.counterRow}>
+                <div className={styles.counter}>
+                  <button
+                    onClick={() => setRoomsCount(Math.max(minRoomsNeeded, roomsCount - 1))}
+                    disabled={roomsCount <= minRoomsNeeded}
+                    aria-label="Decrease room count"
+                  >-</button>
+                  <span>{roomsCount}</span>
+                  <button
+                    onClick={() => setRoomsCount(Math.min(Number(selectedRoom.units || 99), roomsCount + 1))}
+                    disabled={roomsCount >= Number(selectedRoom.units || 99)}
+                    aria-label="Increase room count"
+                  >+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className={styles.roomCounterNote}>
+             {minRoomsNeeded > 1 && `Min ${minRoomsNeeded} rooms required for your group · `}
+             {selectedRoom.units ? `Only ${selectedRoom.units} rooms available` : "Up to 99 rooms available"}
+          </div>
+        </div>
+      )}
+
       {/* Room capacity message – add another room or no room available */}
       {roomCapacityMessage && (
         <div className={cn(
@@ -652,9 +688,31 @@ return (
       {showTotal && numberOfNights > 0 && (
         <div className={styles.totalBreakdown}>
           <div className={styles.totalRow}>
-            <span>{formatPrice(price)} × {numberOfNights} night{numberOfNights !== 1 ? "s" : ""}{roomsNeeded > 1 ? ` × ${roomsNeeded} rooms` : ""}</span>
-            <span>{formatPrice(totalPerStay)}</span>
+            <span>
+              {selectedRoom?.roomName || "Room"} × {numberOfNights} night{numberOfNights !== 1 ? "s" : ""}
+              {roomsNeeded > 1 ? ` × ${roomsNeeded} rooms` : ""}
+            </span>
+            <span>{formatPrice(discountedBasePrice * numberOfNights * roomsNeeded)}</span>
           </div>
+
+          {extraAdults > 0 && (
+            <div className={styles.totalRow}>
+              <span>
+                Extra Adult{extraAdults > 1 ? "s" : ""} ({formatPrice(extraAdultPrice)}/night × {extraAdults} × {numberOfNights} night{numberOfNights !== 1 ? "s" : ""}{roomsNeeded > 1 ? ` × ${roomsNeeded} rooms` : ""})
+              </span>
+              <span>{formatPrice(extraAdults * extraAdultPrice * numberOfNights * roomsNeeded)}</span>
+            </div>
+          )}
+
+          {extraChildren > 0 && (
+            <div className={styles.totalRow}>
+              <span>
+                Extra Child{extraChildren > 1 ? "ren" : ""} ({formatPrice(extraChildPrice)}/night × {extraChildren} × {numberOfNights} night{numberOfNights !== 1 ? "s" : ""}{roomsNeeded > 1 ? ` × ${roomsNeeded} rooms` : ""})
+              </span>
+              <span>{formatPrice(extraChildren * extraChildPrice * numberOfNights * roomsNeeded)}</span>
+            </div>
+          )}
+
           <div className={cn(styles.totalRow, styles.totalRowFinal)}>
             <span>Total</span>
             <span>{formatPrice(totalPerStay)}</span>
@@ -758,7 +816,18 @@ const PropertyDetails = ({ stay }) => {
 };
 
 // Room Card Component
-const RoomCard = ({ room, onSelect, discountPercentage, guests, stay, checkInDate }) => {
+const RoomCard = ({
+  room,
+  onSelect,
+  discountPercentage,
+  guests,
+  stay,
+  checkInDate,
+  selectedRoom,
+  roomsCount,
+  setRoomsCount,
+  minRoomsNeeded
+}) => {
   const images = room?.roomImages || room?.images || [];
   const image = room?.imageUrl || images[0] || room?.coverImageUrl;
   const roomTags = room?.roomAmenities || room?.amenities || [];
@@ -903,10 +972,27 @@ const RoomCard = ({ room, onSelect, discountPercentage, guests, stay, checkInDat
               </div>
             </div>
           </div>
-          <button className={styles.selectRoomBtn} onClick={() => onSelect(room)}>
-            Select Room
-            <Icon name="arrow-right" size="14" />
-          </button>
+          {selectedRoom && (selectedRoom.roomId === room.roomId || selectedRoom.id === room.id) ? (
+            <div className={styles.roomCardCounterWrap}>
+              <div className={styles.counterLabel}>Select Quantity</div>
+              <div className={styles.counter}>
+                <button
+                  onClick={() => setRoomsCount(Math.max(minRoomsNeeded, roomsCount - 1))}
+                  disabled={roomsCount <= minRoomsNeeded}
+                >-</button>
+                <span>{roomsCount}</span>
+                <button
+                  onClick={() => setRoomsCount(Math.min(Number(room.units || 99), roomsCount + 1))}
+                  disabled={roomsCount >= Number(room.units || 99)}
+                >+</button>
+              </div>
+            </div>
+          ) : (
+            <button className={styles.selectRoomBtn} onClick={() => onSelect(room)}>
+              Select Room
+              <Icon name="arrow-right" size="14" />
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -914,7 +1000,19 @@ const RoomCard = ({ room, onSelect, discountPercentage, guests, stay, checkInDat
 };
 
 // Available Rooms Section
-const AvailableRooms = ({ rooms, availabilityChecked, onSelectRoom, selectedRoom, discountPercentage, guests, stay, checkInDate }) => {
+const AvailableRooms = ({
+  rooms,
+  availabilityChecked,
+  onSelectRoom,
+  selectedRoom,
+  discountPercentage,
+  guests,
+  stay,
+  checkInDate,
+  roomsCount,
+  setRoomsCount,
+  minRoomsNeeded
+}) => {
   const totalGuests = (guests?.adults || 0) + (guests?.children || 0);
 
   if (!rooms || rooms.length === 0) {
@@ -956,6 +1054,10 @@ const AvailableRooms = ({ rooms, availabilityChecked, onSelectRoom, selectedRoom
             guests={guests}
             stay={stay}
             checkInDate={checkInDate}
+            selectedRoom={selectedRoom}
+            roomsCount={roomsCount}
+            setRoomsCount={setRoomsCount}
+            minRoomsNeeded={minRoomsNeeded}
           />
         ))}
       </div>
@@ -1137,6 +1239,7 @@ const StayProduct = () => {
   const [availabilityChecked, setAvailabilityChecked] = useState(false);
   const [availableRooms, setAvailableRooms] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [roomsCount, setRoomsCount] = useState(1);
 
   const numberOfNights = useMemo(() => {
     if (!checkInDate || !checkOutDate) return 0;
@@ -1155,36 +1258,55 @@ const StayProduct = () => {
   const filteredRoomsByGuests = availableRooms;
 
   // Extra-room logic: if selected room's max capacity < totalGuests, suggest more rooms
-  const { roomsNeeded, roomCapacityMessage } = useMemo(() => {
-    if (!selectedRoom || !isRoomBased) return { roomsNeeded: 1, roomCapacityMessage: null };
+  const { roomsNeeded, roomCapacityMessage, minRoomsNeeded } = useMemo(() => {
+    if (!selectedRoom || !isRoomBased) return { roomsNeeded: 1, minRoomsNeeded: 1, roomCapacityMessage: null };
     const totalGuests = (guests?.adults || 0) + (guests?.children || 0);
 
     const roomCapacity = selectedRoom.maxGuests != null
       ? Number(selectedRoom.maxGuests)
       : (Number(selectedRoom.maxAdults) || 0) + (Number(selectedRoom.maxChildren) || 0) || 2;
-    if (totalGuests <= roomCapacity) return { roomsNeeded: 1, roomCapacityMessage: null };
 
-    const needed = Math.ceil(totalGuests / roomCapacity);
-    // Check if that many rooms are available (units field)
+    const minNeeded = Math.ceil(totalGuests / roomCapacity);
     const availableUnits = Number(selectedRoom.units || selectedRoom.availableRooms || selectedRoom.availableUnits || 99);
-    if (availableUnits >= needed) {
-      return {
-        roomsNeeded: needed,
-        roomCapacityMessage: {
-          type: "info",
-          text: `Your group of ${totalGuests} needs ${needed} room${needed > 1 ? "s" : ""} (max ${roomCapacity} guests/room). ${needed} rooms will be booked.`
-        }
-      };
-    } else {
+    
+    // Final rooms needed is the max of automatically required and user selection
+    const finalRoomsNeeded = Math.max(minNeeded, roomsCount);
+
+    if (availableUnits < finalRoomsNeeded) {
       return {
         roomsNeeded: availableUnits,
+        minRoomsNeeded: minNeeded,
         roomCapacityMessage: {
           type: "warning",
           text: `Only ${availableUnits} room${availableUnits !== 1 ? "s" : ""} available for this type. Please reduce guest count or choose a different room.`
         }
       };
     }
-  }, [selectedRoom, guests, isRoomBased]);
+
+    if (finalRoomsNeeded > minNeeded) {
+      return {
+        roomsNeeded: finalRoomsNeeded,
+        minRoomsNeeded: minNeeded,
+        roomCapacityMessage: {
+          type: "info",
+          text: `You have selected ${finalRoomsNeeded} rooms. Your group fits in ${minNeeded} room${minNeeded > 1 ? "s" : ""}.`
+        }
+      };
+    }
+
+    if (minNeeded > 1) {
+      return {
+        roomsNeeded: finalRoomsNeeded,
+        minRoomsNeeded: minNeeded,
+        roomCapacityMessage: {
+          type: "info",
+          text: `Your group of ${totalGuests} needs ${minNeeded} room${minNeeded > 1 ? "s" : ""} (max ${roomCapacity} guests/room). ${minNeeded} rooms will be booked.`
+        }
+      };
+    }
+
+    return { roomsNeeded: finalRoomsNeeded, minRoomsNeeded: minNeeded, roomCapacityMessage: null };
+  }, [selectedRoom, guests, isRoomBased, roomsCount]);
 
   // Clear selected room if it no longer fits the current guest count
   useEffect(() => {
@@ -1630,6 +1752,10 @@ const StayProduct = () => {
                 guests={guests}
                 stay={stay}
                 checkInDate={checkInDate}
+                selectedRoom={selectedRoom}
+                roomsCount={roomsCount}
+                setRoomsCount={setRoomsCount}
+                minRoomsNeeded={minRoomsNeeded}
               />
             )}
 
@@ -1659,6 +1785,9 @@ const StayProduct = () => {
               discountPercentage={discountPercentage}
               numberOfNights={numberOfNights}
               roomsNeeded={roomsNeeded}
+              roomsCount={roomsCount}
+              setRoomsCount={setRoomsCount}
+              minRoomsNeeded={minRoomsNeeded}
               roomCapacityMessage={roomCapacityMessage}
             />
           </div>

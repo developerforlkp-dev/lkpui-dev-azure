@@ -104,8 +104,6 @@
         min-width: 0
         flex: 1
         overflow: hidden
-        text-overflow: ellipsis
-        white-space: nowrap
         word-break: break-word
     &:nth-child(2)
         flex-shrink: 0
@@ -235,3 +233,12 @@
         left: -9999px !important
         top: auto !important
         pointer-events: none !important
+
+.priceDetailsStack
+    display: flex
+    flex-direction: column
+    gap: 2px
+    span
+        display: block
+        line-height: 1.4
+        white-space: normal
