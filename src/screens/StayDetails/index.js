@@ -1,1 +1,1 @@
-export { default } from "../StayProduct";
+export { default } from "./StayDetails";
