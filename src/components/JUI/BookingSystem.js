@@ -10,7 +10,7 @@ import DateSingle from "../DateSingle";
 import TimeSlotsPicker from "../TimeSlotsPicker";
 import Counter from "../Counter";
 
-export function BookingSystem({ listing, type = "experience" }) {
+export function BookingSystem({ listing, type = "experience", selectedAddOns = [] }) {
   const history = useHistory();
   const { tokens: { A, AH, BG, FG, M, S, B, AL, W } } = useTheme();
   const [show, setShow] = useState(false);
@@ -18,28 +18,118 @@ export function BookingSystem({ listing, type = "experience" }) {
   // Real State management
   const [startDate, setStartDate] = useState(null);
   const [startTime, setStartTime] = useState(null);
-  const [guests, setGuests] = useState(1);
+  const [guests, setGuests] = useState({ adults: 1, children: 0, infants: 0 });
+  const totalGuests = guests.adults + guests.children;
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const listingId = listing?.listingId;
+
+  // Calculate addon total
+  const addOnsTotal = selectedAddOns.reduce((sum, item) => {
+    const addon = item.addon || item;
+    return sum + (parseFloat(addon.price) || 0);
+  }, 0);
+
+  // Extract time slots from listing
+  const timeSlots = listing?.timeSlots || [];
+  
+  // Extract proper price depending on whether a time slot is selected
+  const selectedSlotData = timeSlots.find(s => s.slotName === startTime || s.startTime === startTime) || timeSlots[0];
+  const extractedPrice = selectedSlotData?.pricePerPerson 
+    || listing?.timeSlots?.[0]?.pricePerPerson
+    || listing?.pricing?.basePrice
+    || listing?.basePrice
+    || listing?.price 
+    || listing?.b2cPrice 
+    || "0";
+  
+  const data = {
+    price: extractedPrice,
+    unit: type === "stay" ? "night" : "person",
+    icon: type === "stay" ? Bed : (type === "food" ? ChefHat : Ticket)
+  };
+
+  const baseTotal = parseFloat(data.price) * totalGuests;
+  const finalTotal = baseTotal + addOnsTotal;
 
   const handleReserve = () => {
     if (!startDate) return;
     
     const dateStr = startDate.format("YYYY-MM-DD");
-    let url = `/experience-checkout?listingId=${listingId}&startDate=${dateStr}&guests=${guests}`;
+    let url = `/experience-checkout?listingId=${listingId}&startDate=${dateStr}&guests=${totalGuests}`;
     if (startTime) url += `&startTime=${startTime}`;
-    
-    history.push(url);
-  };
 
-  // Extract time slots from listing
-  const timeSlots = listing?.timeSlots || [];
-  
-  const data = {
-    price: listing?.price || "0",
-    unit: type === "stay" ? "night" : "person",
-    icon: type === "stay" ? Bed : (type === "food" ? ChefHat : Ticket)
+    const guestsObj = { ...guests, guests: totalGuests };
+    const addOnQuantities = {};
+    const receipt = [];
+    
+    receipt.push({
+      title: `₹${data.price} x ${totalGuests} ${data.unit}${totalGuests > 1 ? 's' : ''}`,
+      content: `₹${baseTotal}`,
+      kind: "base",
+      showInCheckout: true
+    });
+    
+    selectedAddOns.forEach(item => {
+      const addon = item.addon || item;
+      const id = addon.addonId || addon.id;
+      addOnQuantities[id] = 1;
+      receipt.push({
+        title: addon.title || "Add-on",
+        content: `₹${addon.price || 0}`,
+        kind: "addon",
+        showInCheckout: false
+      });
+    });
+
+    receipt.push({
+      title: "Total",
+      content: `₹${finalTotal}`,
+      kind: "total",
+      showInCheckout: true
+    });
+    
+    const bookingData = {
+      listingId: listingId,
+      listingTitle: listing?.title || listing?.name || "Experience",
+      listingImage: listing?.coverPhotoUrl || listing?.listingMedia?.[0]?.url || "",
+      hostName: listing?.host?.firstName ? `${listing?.host?.firstName} ${listing?.host?.lastName || ""}`.trim() : "Host",
+      hostAvatar: listing?.host?.profilePhotoUrl || "/images/content/avatar.jpg",
+      selectedDate: dateStr,
+      selectedTimeSlot: startTime,
+      guests: guestsObj,
+      selectedAddOns: selectedAddOns.map(a => (a.addon?.addonId || a.addonId || a.id)),
+      addOnQuantities: addOnQuantities,
+      receipt: receipt,
+      finalTotal: finalTotal,
+      pricing: {
+        currency: "INR",
+        basePrice: baseTotal,
+        addonsTotal: addOnsTotal,
+        subtotal: baseTotal + addOnsTotal,
+        discount: 0,
+        tax: 0,
+        total: finalTotal,
+        guestCount: totalGuests,
+        pricePerPerson: parseFloat(extractedPrice || 0)
+      },
+      bookingSummary: {
+        date: dateStr,
+        time: startTime,
+        guestCount: totalGuests,
+        billableGuestCount: totalGuests
+      }
+    };
+    
+    // Pass selected addons and full bookingData to the checkout page
+    history.push({
+      pathname: "/experience-checkout",
+      search: url.split("?")[1] ? "?" + url.split("?")[1] : "",
+      state: { 
+        addOns: selectedAddOns.map(item => item.addon || item),
+        bookingData: bookingData
+      }
+    });
   };
 
   const IconComp = data.icon;
@@ -97,7 +187,6 @@ export function BookingSystem({ listing, type = "experience" }) {
                 maxWidth: 480,
                 background: BG,
                 borderRadius: 32,
-                overflow: "hidden",
                 boxShadow: "0 40px 100px rgba(0,0,0,0.4)",
                 border: `1px solid ${B}`
               }}
@@ -107,7 +196,7 @@ export function BookingSystem({ listing, type = "experience" }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
                   <div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                      <span style={{ fontSize: 32, fontWeight: 700, color: FG }}>${data.price}</span>
+                      <span style={{ fontSize: 32, fontWeight: 700, color: FG }}>₹{data.price}</span>
                       <span style={{ fontSize: 14, color: M }}>/{data.unit}</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 8 }}>
@@ -127,18 +216,18 @@ export function BookingSystem({ listing, type = "experience" }) {
                 <div style={{ 
                   border: `1px solid ${B}`, 
                   borderRadius: 20, 
-                  overflow: "hidden",
                   background: S 
                 }}>
                   {/* Date Picker Integration */}
                   <div style={{ borderBottom: `1px solid ${B}`, padding: "16px 20px" }}>
                     <div style={{ fontSize: 10, color: M, fontWeight: 700, textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.05em" }}>Select Date</div>
                     <DateSingle 
-                      plain 
+                      withPortal={true}
                       date={startDate}
                       onDateChange={(date) => setStartDate(date)}
                       placeholder="Pick a date"
                       id="jui-booking-date"
+                      plain
                     />
                   </div>
 
@@ -166,14 +255,27 @@ export function BookingSystem({ listing, type = "experience" }) {
                     </div>
 
                     <div style={{ padding: "16px 20px" }}>
-                      <div style={{ fontSize: 10, color: M, fontWeight: 700, textTransform: "uppercase", marginBottom: 4, letterSpacing: "0.05em" }}>Guests</div>
-                      <Counter 
-                        value={guests} 
-                        setValue={setGuests} 
-                        min={1} 
-                        iconMinus="minus" 
-                        iconPlus="plus" 
-                      />
+                      <div style={{ fontSize: 10, color: M, fontWeight: 700, textTransform: "uppercase", marginBottom: 12, letterSpacing: "0.05em" }}>Guests</div>
+                      
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 13, color: FG, fontWeight: 600 }}>Adults</span>
+                          <Counter 
+                            value={guests.adults} 
+                            setValue={(val) => setGuests(prev => ({ ...prev, adults: val }))} 
+                            min={1} 
+                          />
+                        </div>
+                        
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 13, color: FG, fontWeight: 600 }}>Children</span>
+                          <Counter 
+                            value={guests.children} 
+                            setValue={(val) => setGuests(prev => ({ ...prev, children: val }))} 
+                            min={0} 
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -181,16 +283,24 @@ export function BookingSystem({ listing, type = "experience" }) {
                 {/* Total & Summary */}
                 <div style={{ marginTop: 32, padding: "24px 0", borderTop: `1px solid ${B}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                    <span style={{ color: M, fontSize: 14 }}>${data.price} x {guests} {data.unit}{guests > 1 ? 's' : ''}</span>
-                    <span style={{ color: FG, fontWeight: 600, fontSize: 14 }}>${parseFloat(data.price) * guests}</span>
+                    <span style={{ color: M, fontSize: 14 }}>₹{data.price} x {totalGuests} {data.unit}{totalGuests > 1 ? 's' : ''}</span>
+                    <span style={{ color: FG, fontWeight: 600, fontSize: 14 }}>₹{baseTotal}</span>
                   </div>
+
+                  {selectedAddOns.length > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                      <span style={{ color: M, fontSize: 14 }}>Add-ons ({selectedAddOns.length})</span>
+                      <span style={{ color: FG, fontWeight: 600, fontSize: 14 }}>+₹{addOnsTotal}</span>
+                    </div>
+                  )}
+
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
                     <span style={{ color: M, fontSize: 14 }}>Service fee</span>
-                    <span style={{ color: FG, fontWeight: 600, fontSize: 14 }}>$0</span>
+                    <span style={{ color: FG, fontWeight: 600, fontSize: 14 }}>₹0</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16, paddingTop: 16, borderTop: `1px dashed ${B}` }}>
                     <span style={{ color: FG, fontWeight: 700, fontSize: 18 }}>Total</span>
-                    <span style={{ color: A, fontWeight: 700, fontSize: 18 }}>${parseFloat(data.price) * guests}</span>
+                    <span style={{ color: A, fontWeight: 700, fontSize: 18 }}>₹{finalTotal}</span>
                   </div>
                 </div>
 

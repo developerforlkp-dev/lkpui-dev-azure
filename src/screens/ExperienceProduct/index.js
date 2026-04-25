@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useLocation, useParams, useHistory } from "react-router-dom";
 import cn from "classnames";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { ArrowDown, Check, Zap, MapPin, ChevronDown, Clock, User, Camera, Coffee, Phone, Info } from "lucide-react";
+import { ArrowDown, Check, Zap, MapPin, ChevronDown, Clock, User, Camera, Coffee, Phone, Info, Plus } from "lucide-react";
 import { useTheme } from "../../components/JUI/Theme";
 import { Cursor, ProgressBar, Rev, Chars, Mq, SHdr, E, Soul } from "../../components/JUI/UI";
 import { Navbar } from "../../components/JUI/Navbar";
@@ -58,6 +58,16 @@ const ExperienceProduct = () => {
   const [hostData, setHostData] = useState(null);
   const [leadData, setLeadData] = useState(null);
   const [galleryItems, setGalleryItems] = useState([]);
+  const [selectedAddOns, setSelectedAddOns] = useState([]);
+
+  const handleToggleAddon = (addon) => {
+    const addonId = addon.addonId || addon.id;
+    setSelectedAddOns((prev) =>
+      prev.some(a => (a.addonId || a.id) === addonId)
+        ? prev.filter(a => (a.addonId || a.id) !== addonId)
+        : [...prev, addon]
+    );
+  };
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -207,6 +217,132 @@ const ExperienceProduct = () => {
                   <p style={{ fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: M }}>Minimum Age</p>
                 </div>
               </Soul>
+
+              {/* Addons & Itinerary */}
+              <Rev delay={0.4} style={{ gridColumn: "span 4", marginTop: 16 }}>
+                <div style={{ background: W, border: `1px solid ${B}`, padding: "64px", display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 80 }} className="details-inner">
+                  <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
+                     <p style={{ fontSize: 9, letterSpacing: "0.28em", textTransform: "uppercase", color: A, marginBottom: 32, fontWeight: 600 }}>Included Add-ons</p>
+                     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+                       {(listing?.addons || []).length > 0 ? (listing.addons.map((item, i) => {
+                         const addon = item.addon || item;
+                         const addonId = addon.addonId || addon.id;
+                         const addonImage = addon.imageUrl || (addon.imageUrls && addon.imageUrls[0]) || addon.image;
+                         const isSelected = selectedAddOns.some(a => (a.addonId || a.id) === addonId);
+                         
+                         return (
+                           <motion.div 
+                             key={i} 
+                             whileHover={{ x: 10 }} 
+                             transition={{ duration: 0.3 }} 
+                             style={{ 
+                               display: "flex", 
+                               gap: 24, 
+                               alignItems: "flex-start", 
+                               padding: "20px",
+                               background: isSelected ? AL : "transparent",
+                               borderRadius: 24,
+                               border: `1px solid ${isSelected ? A : "transparent"}`,
+                               transition: "0.3s"
+                             }}
+                           >
+                             <div style={{ background: AL, width: 64, height: 64, borderRadius: 16, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `1px solid ${B}` }}>
+                               {addonImage ? (
+                                 <img 
+                                   src={formatImageUrl(addonImage)} 
+                                   style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                                   alt={addon.title} 
+                                   onError={(e) => {
+                                     e.target.onerror = null;
+                                     e.target.src = "/images/content/placeholder.jpg";
+                                   }}
+                                 />
+                               ) : (
+                                 <Plus size={24} color={A} />
+                               )}
+                             </div>
+                             <div style={{ flex: 1 }}>
+                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                 <p style={{ fontSize: 18, fontWeight: 700, color: FG, marginBottom: 8 }}>{addon.title}</p>
+                                 <button 
+                                   onClick={() => handleToggleAddon(addon)}
+                                   style={{ 
+                                     background: isSelected ? A : S,
+                                     color: isSelected ? "#FFF" : FG,
+                                     border: `1px solid ${isSelected ? A : B}`,
+                                     borderRadius: 100,
+                                     padding: "6px 16px",
+                                     fontSize: 11,
+                                     fontWeight: 700,
+                                     cursor: "pointer",
+                                     textTransform: "uppercase",
+                                     letterSpacing: "0.05em"
+                                   }}
+                                 >
+                                   {isSelected ? "Selected" : "Add"}
+                                 </button>
+                               </div>
+                               <p style={{ fontSize: 14, color: M, lineHeight: 1.6 }}>{addon.briefDescription || addon.description}</p>
+                               {addon.price > 0 && (
+                                 <p style={{ fontSize: 13, fontWeight: 700, color: A, marginTop: 8 }}>+ ₹{addon.price}</p>
+                               )}
+                             </div>
+                           </motion.div>
+                         );
+                       })) : (
+                         <p style={{ color: M, fontSize: 14 }}>No special add-ons included for this experience.</p>
+                       )}
+                     </div>
+                  </div>
+
+                  <div>
+                    <p style={{ fontSize: 9, letterSpacing: "0.28em", textTransform: "uppercase", color: M, marginBottom: 32, fontWeight: 600 }}>The Narrative Flow</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 40, position: "relative" }}>
+                       <div style={{ position: "absolute", left: 7, top: 10, bottom: 10, width: 1, background: B }} />
+                       
+                       {(listing?.keyActivities || []).map((it, i) => (
+                         <motion.div key={i} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.15 + 0.4 }}
+                            whileHover={{ x: 10 }}
+                            style={{ display: "flex", gap: 32, alignItems: "flex-start", zIndex: 1, cursor: "default", width: "100%" }}>
+                           <div style={{ width: 15, height: 15, borderRadius: "50%", background: W, border: `3px solid ${A}`, marginTop: 6, flexShrink: 0 }} />
+                           <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flex: 1 }}>
+                             {it.images && it.images.length > 0 && (
+                               <div style={{ width: 120, height: 90, borderRadius: 16, overflow: "hidden", border: `1px solid ${B}`, flexShrink: 0, background: S }}>
+                                 <img 
+                                   src={formatImageUrl(it.images[0].imageUrl || it.images[0])} 
+                                   style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                                   alt={it.name}
+                                   onError={(e) => {
+                                     e.target.onerror = null;
+                                     e.target.src = "/images/content/placeholder.jpg";
+                                   }}
+                                 />
+                               </div>
+                             )}
+                             <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+                               <div style={{ display: "flex", gap: 16, alignItems: "baseline" }}>
+                                  <span style={{ fontSize: 12, fontWeight: 800, color: A, fontFamily: "monospace", textTransform: "uppercase" }}>Activity {i + 1}</span>
+                                  <span className="font-display" style={{ fontSize: "clamp(1.1rem, 2vw, 1.4rem)", fontWeight: 700, color: FG }}>{it.name}</span>
+                               </div>
+                               <p style={{ fontSize: 13, color: "#000", marginTop: 8, lineHeight: 1.6, maxWidth: 480, fontWeight: 500 }}>
+                                 {it.description}
+                               </p>
+                               {it.pilot && (
+                                 <div style={{ fontSize: 11, color: M, marginTop: 4, opacity: 0.9 }}>
+                                   {it.pilot}
+                                 </div>
+                               )}
+                             </div>
+                           </div>
+                         </motion.div>
+                       ))}
+                       {(!listing?.keyActivities || listing.keyActivities.length === 0) && (
+                         <p style={{ color: M, fontSize: 14, marginLeft: 48 }}>Itinerary details are being finalized for this experience.</p>
+                       )}
+                    </div>
+                  </div>
+                </div>
+              </Rev>
             </div>
           </div>
         </section>
@@ -294,7 +430,7 @@ const ExperienceProduct = () => {
 
         <ExperiencePolicies />
         <Footer />
-        <BookingSystem listing={listing} />
+        <BookingSystem listing={listing} selectedAddOns={selectedAddOns} />
       </main>
       <style>{`
         @media(max-width: 900px) { 
