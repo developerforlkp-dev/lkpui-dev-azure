@@ -16,13 +16,16 @@ import {
 } from "../../utils/api";
 import { buildExperienceUrl, extractExperienceIdFromSlugAndId } from "../../utils/experienceUrl";
 
-// Helper function to format image URLs
 const formatImageUrl = (url) => {
   if (!url) return null;
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  if (url.startsWith("leads/")) return `https://lkpleadstoragedev.blob.core.windows.net/lead-documents/${url}`;
-  if (url.startsWith("/")) return url;
-  return `https://lkpleadstoragedev.blob.core.windows.net/lead-documents/${url}`;
+  const raw = String(url).trim();
+  if (!raw) return null;
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  if (raw.startsWith("/")) return raw;
+  const [pathPart, queryPart] = raw.split("?");
+  const normalizedPath = String(pathPart).replaceAll("%2F", "/").replace(/\\/g, "/");
+  const encodedPath = encodeURI(normalizedPath);
+  return `https://lkpleadstoragedev.blob.core.windows.net/lead-documents/${encodedPath}${queryPart ? `?${queryPart}` : ""}`;
 };
 
 /* ─── KINETIC BACKGROUND ────────────────────────── */
@@ -97,9 +100,9 @@ const ExperienceProduct = () => {
           const canonicalUrl = buildExperienceUrl(data.title || "experience", data.listingId || data.id || id);
           if (location.pathname !== canonicalUrl) history.replace(canonicalUrl);
 
-          const leadUserId = data.leadUserId || data.host?.leadUserId;
-          if (leadUserId) {
-            getHost(leadUserId).then(resp => mounted && setHostData(resp)).catch(e => console.warn(e));
+          const hostId = data.hostId || data.host?.id || data.host?.hostId || data.leadUserId || data.host?.leadUserId;
+          if (hostId) {
+            getHost(hostId).then(resp => mounted && setHostData(resp.host || resp)).catch(e => console.warn(e));
           }
 
           const leadId = data.leadId || data.lead_id || data.host?.leadId || data.leadUserId;
@@ -129,6 +132,7 @@ const ExperienceProduct = () => {
   // Formatting description for details section
   const description = listing?.description || listing?.aboutListing || "A multisensory odyssey that blurs the line between perception and possibility.";
   const summary = listing?.summary || listing?.listingSummary || "High-fidelity touchpoints that respond to your presence in real-time.";
+  const displayTags = listing?.tags?.length > 0 ? listing.tags : ["Artistic Evolution", "Deep Immersion", "Sonic Archeology"];
 
   return (
     <>
@@ -165,35 +169,45 @@ const ExperienceProduct = () => {
           </motion.div>
         </section>
 
-        <Mq items={["Artistic Evolution", "Deep Immersion", "Sonic Archeology"]} size="sm" bg={BG} />
+        <Mq items={displayTags} size="sm" bg={BG} />
 
         {/* GALLERY SECTION */}
-        <section style={{ background: W, padding: "80px 36px 60px" }}>
-          <div style={{ maxWidth: 1320, margin: "0 auto" }}>
-            <Soul y={100} s={0.1} r={0}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: 340, gap: 16 }} className="gal-grid">
-                {galleryItems.slice(0, 4).map((img, i) => (
-                  <motion.div key={i} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} 
-                    style={{ 
-                      gridColumn: i === 0 ? "span 2" : "span 1", 
-                      gridRow: i === 0 || i === 2 ? "span 2" : "span 1", 
-                      borderRadius: 24, overflow: "hidden", border: `1px solid ${B}` 
-                    }}>
-                    <img src={img} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" />
+        <section style={{ background: W, padding: "80px 0 60px", overflow: "hidden", display: "flex" }}>
+          {(() => {
+            const baseItems = galleryItems.length > 0 ? galleryItems : ["/images/content/placeholder.jpg"];
+            let filledItems = [...baseItems];
+            while(filledItems.length < 8) {
+              filledItems = [...filledItems, ...baseItems];
+            }
+            const doubledItems = [...filledItems, ...filledItems];
+
+            return (
+              <motion.div
+                animate={{ x: ["0%", "-50%"] }}
+                transition={{ repeat: Infinity, ease: "linear", duration: 40 }}
+                style={{ display: "flex", gap: 16, width: "max-content", paddingLeft: 16 }}
+              >
+                {doubledItems.map((img, i) => (
+                  <motion.div 
+                    key={i} 
+                    whileHover={{ scale: 0.98 }}
+                    style={{ width: "clamp(300px, 25vw, 450px)", height: 400, borderRadius: 24, overflow: "hidden", flexShrink: 0, border: `1px solid ${B}` }}
+                  >
+                    <img src={img} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Gallery" />
                   </motion.div>
                 ))}
-              </div>
-            </Soul>
-          </div>
+              </motion.div>
+            );
+          })()}
         </section>
 
-        <Mq items={["Artistic Evolution", "Deep Immersion", "Sonic Archeology", "Aura Collective"]} bg={BG} />
+        <Mq items={displayTags} bg={BG} />
 
         {/* DETAILS SECTION */}
         <section style={{ background: BG, padding: "180px 36px 130px" }}>
           <div style={{ maxWidth: 1320, margin: "0 auto" }}>
             <SHdr idx="01" label="Overview" />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }} className="details-grid">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }} className="details-grid">
               <Soul delay={0.1} style={{ gridColumn: "span 2" }}>
                 <div style={{ background: W, border: `1px solid ${B}`, padding: 48, height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                    <div>
@@ -218,8 +232,16 @@ const ExperienceProduct = () => {
                 </div>
               </Soul>
 
+              <Soul y={120} r={5} style={{ gridColumn: "span 1" }}>
+                <div style={{ background: S, border: `1px solid ${B}`, padding: 48, height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                  <Zap size={28} color={A} style={{ marginBottom: 16 }} />
+                  <p style={{ fontSize: 24, fontWeight: 700, color: FG, marginBottom: 4 }}>{listing?.difficultyLevel || "Moderate"}</p>
+                  <p style={{ fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: M }}>Difficulty</p>
+                </div>
+              </Soul>
+
               {/* Addons & Itinerary */}
-              <Rev delay={0.4} style={{ gridColumn: "span 4", marginTop: 16 }}>
+              <Rev delay={0.4} style={{ gridColumn: "span 5", marginTop: 16 }}>
                 <div style={{ background: W, border: `1px solid ${B}`, padding: "64px", display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 80 }} className="details-inner">
                   <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
                      <p style={{ fontSize: 9, letterSpacing: "0.28em", textTransform: "uppercase", color: A, marginBottom: 32, fontWeight: 600 }}>Included Add-ons</p>
@@ -309,12 +331,12 @@ const ExperienceProduct = () => {
                              {it.images && it.images.length > 0 && (
                                <div style={{ width: 120, height: 90, borderRadius: 16, overflow: "hidden", border: `1px solid ${B}`, flexShrink: 0, background: S }}>
                                  <img 
-                                   src={formatImageUrl(it.images[0].imageUrl || it.images[0])} 
+                                   src={formatImageUrl(it.images[0]?.imageUrl || it.images[0]?.url || it.images[0]?.fileUrl || (typeof it.images[0] === 'string' ? it.images[0] : null))} 
                                    style={{ width: "100%", height: "100%", objectFit: "cover" }} 
                                    alt={it.name}
                                    onError={(e) => {
                                      e.target.onerror = null;
-                                     e.target.src = "/images/content/placeholder.jpg";
+                                     e.target.src = "/images/content/photo-1.1.jpg";
                                    }}
                                  />
                                </div>
@@ -347,7 +369,7 @@ const ExperienceProduct = () => {
           </div>
         </section>
 
-        <Mq items={["Curated Staging", "Atmospheric Prep", "Sonic Calibration"]} size="sm" bg={BG} />
+        <Mq items={displayTags} size="sm" bg={BG} />
 
         {/* PREPARATION SECTION */}
         <section style={{ background: W, padding: "130px 36px" }}>
@@ -365,33 +387,60 @@ const ExperienceProduct = () => {
                      </div>
                    </div>
                    <div style={{ background: W, border: `1px solid ${B}`, height: 200, marginTop: 16, position: "relative", overflow: "hidden" }}>
-                      <div style={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(${A}18 1px,transparent 1px),linear-gradient(90deg,${A}18 1px,transparent 1px)`, backgroundSize: "20px 20px" }} />
-                      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 12, height: 12, background: A, borderRadius: "50%" }}>
-                        <motion.div animate={{ scale: [1, 2.5, 1], opacity: [0.5, 0, 0.5] }} transition={{ duration: 2, repeat: Infinity }} style={{ position: "absolute", inset: "-6px", border: `2px solid ${A}`, borderRadius: "50%" }} />
-                      </div>
+                      {listing?.meetingLatitude && listing?.meetingLongitude ? (
+                        <iframe 
+                          width="100%" 
+                          height="100%" 
+                          frameBorder="0" 
+                          style={{ border: 0 }} 
+                          src={`https://maps.google.com/maps?q=${listing.meetingLatitude},${listing.meetingLongitude}&hl=en&z=14&output=embed`} 
+                          allowFullScreen 
+                          title="Meeting Location"
+                        />
+                      ) : (
+                        <>
+                          <div style={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(${A}18 1px,transparent 1px),linear-gradient(90deg,${A}18 1px,transparent 1px)`, backgroundSize: "20px 20px" }} />
+                          <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 12, height: 12, background: A, borderRadius: "50%" }}>
+                            <motion.div animate={{ scale: [1, 2.5, 1], opacity: [0.5, 0, 0.5] }} transition={{ duration: 2, repeat: Infinity }} style={{ position: "absolute", inset: "-6px", border: `2px solid ${A}`, borderRadius: "50%" }} />
+                          </div>
+                        </>
+                      )}
                    </div>
                  </div>
                </Rev>
                <Rev delay={0.2}>
-                 <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
-                   <div>
-                     <h3 style={{ fontSize: "clamp(2rem,3vw,2.5rem)", fontWeight: 700, color: FG, marginBottom: 24 }}>Requirements</h3>
-                     <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 12, padding: 0 }}>
-                       {(listing?.requirements || ["Government-issued Photo ID (18+ Mandatory)", "Valid Event Ticket", "Comfortable walking shoes"]).map(item => (
-                         <li key={item} style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                            <div style={{ width: 6, height: 6, background: A }} />
-                            <span style={{ fontSize: 13, color: M }}>{item}</span>
-                         </li>
-                       ))}
-                     </ul>
-                   </div>
-                 </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
+                    <div>
+                      <h3 style={{ fontSize: "clamp(2rem,3vw,2.5rem)", fontWeight: 700, color: FG, marginBottom: 24 }}>Location Details</h3>
+                      <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 16, padding: 0 }}>
+                        {[
+                          { label: "Address", val: listing?.meetingAddress },
+                          { label: "District", val: listing?.meetingDistrict },
+                          { label: "State", val: listing?.meetingState },
+                          { label: "Country", val: listing?.meetingCountry },
+                          { label: "Landmark", val: listing?.meetingLandmark },
+                          { label: "Instructions", val: listing?.meetingInstructions }
+                        ].filter(x => x.val).map((item, i) => (
+                          <li key={i} style={{ display: "flex", gap: 16, alignItems: "baseline", borderBottom: `1px solid ${B}`, paddingBottom: 16 }}>
+                             <span style={{ fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: A, width: 100, flexShrink: 0, fontWeight: 600 }}>{item.label}</span>
+                             <span style={{ fontSize: 14, color: FG, fontWeight: 500, lineHeight: 1.6 }}>{item.val}</span>
+                          </li>
+                        ))}
+                        {(!listing?.meetingDistrict && !listing?.meetingState && !listing?.meetingCountry) && (
+                          <li style={{ display: "flex", gap: 16, alignItems: "baseline", borderBottom: `1px solid ${B}`, paddingBottom: 16 }}>
+                             <span style={{ fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: A, width: 100, flexShrink: 0, fontWeight: 600 }}>Region</span>
+                             <span style={{ fontSize: 14, color: M, fontWeight: 500 }}>Specific regional details will be provided upon booking confirmation.</span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
                </Rev>
             </div>
           </div>
         </section>
 
-        <Mq items={["Aura Collective", "Global Perspective", "Immersive Reviews"]} size="sm" bg={BG} />
+        <Mq items={displayTags} size="sm" bg={BG} />
 
         {/* HOST & REVIEWS SECTION */}
         <section style={{ background: BG, padding: "130px 36px" }}>
@@ -399,9 +448,8 @@ const ExperienceProduct = () => {
              <Rev delay={0.1}>
                <SHdr idx="03" label="The Host" />
                <div style={{ padding: 48, background: W, border: `1px solid ${B}` }}>
-                 <img src={formatImageUrl(hostData?.profilePhotoUrl) || "/gallery/dancer.png"} alt="Host" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", marginBottom: 24, filter: "grayscale(1)" }} />
-                 <h3 style={{ fontSize: "2rem", fontWeight: 700, color: FG, marginBottom: 8 }}>{hostData?.firstName} {hostData?.lastName || "Curator"}</h3>
-                 <p style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: A, marginBottom: 24 }}>{hostData?.businessName || "Lead Curator"}</p>
+                 <h3 style={{ fontSize: "2rem", fontWeight: 700, color: FG, marginBottom: 8 }}>{hostData?.firstName} {hostData?.lastName || ""}</h3>
+                 <p style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: A, marginBottom: 24 }}>Host</p>
                  <p style={{ fontSize: 13, color: M, lineHeight: 1.8 }}>{hostData?.about || "An expert guide who will personally lead the Experience group through the unseen veins of the venue, offering context and narrative to every installation."}</p>
                  {leadData && (
                    <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -428,7 +476,7 @@ const ExperienceProduct = () => {
           </div>
         </section>
 
-        <ExperiencePolicies />
+        <ExperiencePolicies listing={listing} />
         <Footer />
         <BookingSystem listing={listing} selectedAddOns={selectedAddOns} />
       </main>
@@ -456,13 +504,28 @@ function PolicyItem({ p }) {
         <span style={{ fontSize: 13, fontWeight: 600, color: op ? A : FG }}>{p.title}</span>
         <ChevronDown size={15} color={M} style={{ transform: op ? 'rotate(180deg)' : 'none', transition: '0.3s' }} />
       </button>
-      {op && <p style={{ padding: "0 16px 22px", fontSize: 13, color: M, lineHeight: 1.8 }}>{p.body}</p>}
+      {op && (
+        <div style={{ padding: "0 16px 22px", fontSize: 13, color: M, lineHeight: 1.8 }}>
+          {p.body?.includes('\n') ? (
+            <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 8, padding: 0, margin: 0 }}>
+              {p.body.split('\n').map(line => line.trim()).filter(line => line).map((item, j) => (
+                <li key={j} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                   <div style={{ width: 4, height: 4, background: A, borderRadius: "50%", flexShrink: 0, marginTop: 8 }} />
+                   <span style={{ fontSize: 13, color: M, lineHeight: 1.4 }}>{item}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ margin: 0 }}>{p.body}</p>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }
 
-function ExperiencePolicies() {
-  const { tokens: { FG, W, B } } = useTheme();
+function ExperiencePolicies({ listing }) {
+  const { tokens: { FG, W, B, A, M } } = useTheme();
   const policies = [
     { id: 1, title: "Punctuality", body: "The Experience begins precisely as scheduled. Late arrivals may not be accommodated to prevent disruption." },
     { id: 2, title: "Cancellation", body: "Fully refundable up to 72 hours before the event. Non-refundable within 72 hours." }
@@ -478,9 +541,15 @@ function ExperiencePolicies() {
           </Rev>
           <Rev delay={0.2}>
             <div style={{ borderTop: `1px solid ${B}` }}>
-              {policies.map(p => (
-                <PolicyItem key={p.id} p={p} />
-              ))}
+              {listing?.guestRequirements?.length > 0 ? (
+                listing.guestRequirements.map((req, i) => (
+                  <PolicyItem key={`req-${i}`} p={{ title: req.setting?.title, body: req.setting?.description }} />
+                ))
+              ) : (
+                policies.map(p => (
+                  <PolicyItem key={p.id} p={p} />
+                ))
+              )}
             </div>
           </Rev>
         </div>

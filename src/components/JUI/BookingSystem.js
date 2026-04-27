@@ -136,6 +136,15 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
 
   return (
     <>
+      <style>{`
+        .SingleDatePicker_picker,
+        .SingleDatePickerPortal,
+        .DateRangePicker_picker,
+        .DateRangePickerPortal,
+        .ReactDatesPortal {
+          z-index: 99999 !important;
+        }
+      `}</style>
       {/* Floating Trigger */}
       <motion.button
         onClick={() => setShow(true)}
