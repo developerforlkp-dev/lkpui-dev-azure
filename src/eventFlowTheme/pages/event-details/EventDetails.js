@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext, useRef } from "r
 import { Link, useLocation, useHistory } from 'react-router-dom';
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValue, useSpring, useInView, animate } from "framer-motion";
 import { ArrowDown, ArrowRight, MapPin, Phone, Globe, Check, Zap, ChevronDown, Moon, Sun, Plus, Minus, Calendar, Clock, Users } from "lucide-react";
+import { BookingSystem } from "../../../components/JUI/BookingSystem";
 import { getEventDetails, getHost } from "../../../utils/api";
 import { buildExperienceUrl } from "../../../utils/experienceUrl";
 
@@ -822,6 +823,46 @@ function Rules({ event }) {
   );
 }
 
+function EventBookingPopup({ event }) {
+  const ticketTypes = Array.isArray(event?.ticketTypes) ? event.ticketTypes :
+                      Array.isArray(event?.ticketTiers) ? event.ticketTiers :
+                      Array.isArray(event?.tickets) ? event.tickets : [];
+  const firstTicket = ticketTypes[0] || {};
+  const ticketPrice = firstTicket.price ?? firstTicket.amount ?? firstTicket.basePrice ?? firstTicket.b2cPrice ?? event?.ticketPrice ?? event?.price ?? 0;
+  const rawSlots = event?.timeSlots || event?.slots || [];
+  const timeSlots = rawSlots.length > 0 ? rawSlots.map((slot, i) => ({
+    ...slot,
+    slotName: slot.slotName || slot.name || slot.startTime || `Slot ${i + 1}`,
+    startTime: slot.startTime || slot.time || slot.slotName || event?.startTime || "",
+    endTime: slot.endTime || event?.endTime || "",
+    pricePerPerson: slot.pricePerPerson ?? slot.price ?? ticketPrice
+  })) : [{
+    id: "event-default-slot",
+    slotName: event?.startTime || "Event Slot",
+    startTime: event?.startTime || "",
+    endTime: event?.endTime || "",
+    pricePerPerson: ticketPrice
+  }];
+  const listing = {
+    ...event,
+    listingId: event?.listingId || event?.id || event?.eventId,
+    title: event?.title || "Event",
+    name: event?.title || "Event",
+    coverPhotoUrl: event?.media?.[0]?.url || event?.coverPhotoUrl || event?.imageUrl || "",
+    basePrice: ticketPrice,
+    price: ticketPrice,
+    b2cPrice: ticketPrice,
+    pricing: {
+      ...(event?.pricing || {}),
+      basePrice: ticketPrice
+    },
+    timeSlots,
+    host: event?.hostProfile?.host || event?.host || {}
+  };
+
+  return <BookingSystem listing={listing} type="event" triggerLabel="Reserve Ticket" reserveLabel="Reserve Ticket" />;
+}
+
 function Tickets({ event }) {
   const { tokens: { A, AL, BG, FG, M, S, B, W } } = useTheme();
   const history = useHistory();
@@ -1267,7 +1308,7 @@ export default function EventDetails() {
       <Artists event={event} />
       <Venue event={event} hostName={hostName} />
       <Rules event={event} />
-      <Tickets event={event} />
+      <EventBookingPopup event={event} />
     </ScopedThemeProvider>
   );
 }

@@ -10,7 +10,7 @@ import DateSingle from "../DateSingle";
 import TimeSlotsPicker from "../TimeSlotsPicker";
 import Counter from "../Counter";
 
-export function BookingSystem({ listing, type = "experience", selectedAddOns = [] }) {
+export function BookingSystem({ listing, type = "experience", selectedAddOns = [], triggerLabel = "Reserve Now", reserveLabel = "Reserve Experience" }) {
   const history = useHistory();
   const { tokens: { A, AH, BG, FG, M, S, B, AL, W } } = useTheme();
   const [show, setShow] = useState(false);
@@ -172,7 +172,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
         }}
       >
         <IconComp size={20} />
-        Reserve Now
+        {triggerLabel}
       </motion.button>
 
       <AnimatePresence>
@@ -332,7 +332,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
                     boxShadow: `0 10px 30px ${AL}`
                   }}
                 >
-                  Reserve Experience
+                  {reserveLabel}
                 </motion.button>
 
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 24, color: M, fontSize: 12 }}>
