@@ -710,11 +710,23 @@ const StayDetails = () => {
 
       <StayHeroCarousel stay={stay} galleryItems={galleryItems} />
 
-      <Mq items={["Island Sanctuary", "The Living Reef", "Azure Deep", "Bespoke Luxury"]} size="sm" bg={THEMES.light.S} accent />
+      {(() => {
+        const tags = Array.isArray(stay?.tags)
+          ? stay.tags.map(t => typeof t === 'string' ? t : (t?.name || t?.tag || t?.label || t?.value)).filter(Boolean)
+          : [];
+        const items = tags.length > 0 ? tags : ["Island Sanctuary", "The Living Reef", "Azure Deep", "Bespoke Luxury"];
+        return <Mq items={items} size="sm" bg={THEMES.light.S} accent />;
+      })()}
 
       <StayAmenities stay={stay} />
 
-      <Mq items={["Island Sanctuary", "Ocean Perspective", "Curated Luxury", "Azure Horizon"]} dir="r" size="lg" bg={THEMES.light.S} />
+      {(() => {
+        const tags = Array.isArray(stay?.tags)
+          ? stay.tags.map(t => typeof t === 'string' ? t : (t?.name || t?.tag || t?.label || t?.value)).filter(Boolean)
+          : [];
+        const items = tags.length > 0 ? tags : ["Island Sanctuary", "Ocean Perspective", "Curated Luxury", "Azure Horizon"];
+        return <Mq items={items} dir="r" size="lg" bg={THEMES.light.S} />;
+      })()}
 
       <div style={{ background: THEMES.light.BG, padding: "80px 36px 140px" }}>
         <div style={{ maxWidth: 1320, margin: "0 auto" }}>
@@ -776,15 +788,11 @@ const StayDetails = () => {
       </div>
 
       {(() => {
-        const tags = [
-          ...(Array.isArray(stay?.tags) ? stay.tags.map(t => typeof t === 'string' ? t : (t?.name || t?.tag || t?.label)) : []),
-          ...(Array.isArray(stay?.amenities) ? stay.amenities.slice(0, 3).map(a => typeof a === 'string' ? a : (a?.name || a?.amenity)) : []),
-          stay?.propertyType ? toDisplayString(stay.propertyType) : null,
-          stay?.locationCategory ? toDisplayString(stay.locationCategory) : null,
-          stay?.starRating ? `${stay.starRating} Star` : null,
-        ].filter(Boolean);
-        const marqueeItems = tags.length > 0 ? tags : ["Bespoke Service", "Privacy Guaranteed", "Direct Connection"];
-        return <Mq items={marqueeItems} size="sm" bg={THEMES.light.S} accent />;
+        const tags = Array.isArray(stay?.tags)
+          ? stay.tags.map(t => typeof t === 'string' ? t : (t?.name || t?.tag || t?.label || t?.value)).filter(Boolean)
+          : [];
+        const items = tags.length > 0 ? tags : ["Bespoke Service", "Privacy Guaranteed", "Direct Connection"];
+        return <Mq items={items} size="sm" bg={THEMES.light.S} accent />;
       })()}
 
       <StayLocation stay={stay} />
