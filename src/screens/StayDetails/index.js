@@ -1,65 +1,472 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import React, { useEffect, useState, useMemo, createContext, useContext, useRef, useCallback } from "react";
+import { useLocation, Link } from "react-router-dom";
+import { motion, AnimatePresence, useScroll, useTransform, useMotionValue, useSpring, useInView, animate, useAnimationFrame } from "framer-motion";
+import {
+  Wifi, Waves, Sparkles, Dumbbell, Umbrella, Plane, GlassWater, Utensils,
+  Phone, Clock, FileText, MapPin, ChevronDown, CheckCircle, Info, Building,
+  ArrowRight, ShieldCheck, Mail, Globe, Map, Navigation, ArrowDown
+} from "lucide-react";
 import cn from "classnames";
-
-import Product from "../../components/Product";
-import Description from "../ExperienceProduct/Description";
-import TabSection from "../ExperienceProduct/TabSection";
-import CommentsProduct from "../../components/CommentsProduct";
-import Browse from "../../components/Browse";
 import Loader from "../../components/Loader";
 import RoomCards from "./RoomCards";
-
-import { browse2 } from "../../mocks/browse";
 import { getStayDetails, getHost } from "../../utils/api";
 
-// Match other details screens: accept either absolute URLs or our blob paths.
-const formatImageUrl = (url) => {
-  if (!url) return null;
-
-  const raw =
-    typeof url === "string"
-      ? url
-      : url?.url ?? url?.src ?? url?.imageUrl ?? null;
-
-  if (!raw) return null;
-
-  const str = String(raw).trim();
-  if (!str) return null;
-
-  if (str.startsWith("http://") || str.startsWith("https://")) return str;
-  if (str.startsWith("/")) return str;
-
-  // Keep any existing query string intact.
-  const [pathPart, queryPart] = str.split("?");
-  const normalizedPath = String(pathPart).replaceAll("%2F", "/");
-  const encodedPath = encodeURI(normalizedPath);
-
-  return `https://lkpleadstoragedev.blob.core.windows.net/lead-documents/${encodedPath}${
-    queryPart ? `?${queryPart}` : ""
-  }`;
+/* ─── TOKENS & THEME ─────────── */
+const THEMES = {
+  light: {
+    A: "#0097B2", AH: "#008CA5", AL: "rgba(0, 151, 178, 0.08)",
+    BG: "#FBFBF9", FG: "#0F0F0F", M: "#7A7A77",
+    S: "#F3F3F1", B: "#E6E6E3", W: "#FFFFFF"
+  },
+  dark: {
+    A: "#0097B2", AH: "#0AADCA", AL: "rgba(0, 151, 178, 0.15)",
+    BG: "#080808", FG: "#EBEBE6", M: "#8C8C88",
+    S: "#111111", B: "#1F1F1F", W: "#000000"
+  }
 };
 
+const ThemeContext = createContext({ theme: "light", toggleTheme: () => { }, tokens: THEMES.light });
+const useTheme = () => useContext(ThemeContext);
+
+function ScopedThemeProvider({ children }) {
+  const [theme, setTheme] = useState("light");
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    if (wrapperRef.current) {
+      const tokens = THEMES[theme];
+      Object.entries(tokens).forEach(([key, value]) => {
+        wrapperRef.current.style.setProperty(`--${key}`, value);
+      });
+      wrapperRef.current.style.background = tokens.BG;
+      wrapperRef.current.style.color = tokens.FG;
+    }
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === "light" ? "dark" : "light");
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme, tokens: THEMES[theme] }}>
+      <div ref={wrapperRef} className="stay-details-premium" style={{ minHeight: "100vh" }}>
+        {children}
+      </div>
+    </ThemeContext.Provider>
+  );
+}
+
+const E = [0.22, 1, 0.36, 1];
+
+const ScopedStyles = () => (
+  <style>{`
+    .stay-details-premium {
+      font-family: var(--font-inter, system-ui, sans-serif);
+      overflow-x: hidden;
+      cursor: none;
+      transition: background 0.6s cubic-bezier(0.22, 1, 0.36, 1), color 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+      position: relative;
+    }
+    .stay-details-premium a, .stay-details-premium button { cursor: none; }
+    @keyframes marquee-l { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+    @keyframes marquee-r { from{transform:translateX(-50%)} to{transform:translateX(0)} }
+    @keyframes float { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-16px) rotate(1deg)} }
+    
+    .stay-details-premium .font-display { font-family: var(--font-fraunces, Georgia, serif); }
+    .stay-details-premium .mq-l { display: flex; white-space: nowrap; animation: marquee-l 30s linear infinite; }
+    .stay-details-premium .mq-r { display: flex; white-space: nowrap; animation: marquee-r 34s linear infinite; }
+    
+    #cur-dot { position: fixed; width: 6px; height: 6px; background: var(--A); border-radius: 50%; pointer-events: none; z-index: 99999; transform: translate(-50%, -50%); }
+    #cur-ring { position: fixed; width: 38px; height: 38px; border: 1.5px solid var(--AL); border-radius: 50%; pointer-events: none; z-index: 99998; transform: translate(-50%, -50%); }
+    
+    .shimmer-cta {
+      position: relative;
+      overflow: hidden;
+      background: var(--FG);
+      color: var(--BG);
+      font-weight: 700;
+      border-radius: 12px;
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .shimmer-cta::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(to bottom right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+      transform: rotate(45deg);
+      animation: shimmer 3s infinite linear;
+    }
+    @keyframes shimmer { from { transform: translate(-50%,-50%) rotate(45deg); } to { transform: translate(50%,50%) rotate(45deg); } }
+
+    @media(max-width:768px){
+      .stay-details-premium .desk-only { display: none !important; }
+      .pol-contact-grid, .amenities-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
+    }
+  `}</style>
+);
+
+/* ─── UTILS ─────────── */
 const toDisplayString = (value) => {
   if (value === null || value === undefined) return "";
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
+  if (typeof value === "string") return value;
   if (typeof value === "object") {
-    return (
-      value.displayName ??
-      value.name ??
-      value.facilityName ??
-      value.amenityName ??
-      value.title ??
-      value.code ??
-      value.label ??
-      ""
-    );
+    return value.displayName || value.name || value.title || value.code || "";
   }
-  return "";
+  return String(value);
 };
 
+/* ─── UI COMPONENTS ─────────── */
+function Cursor() {
+  const { tokens: { A, AL } } = useTheme();
+  const x = useMotionValue(-200), y = useMotionValue(-200);
+  const sx = useSpring(x, { stiffness: 120, damping: 20 });
+  const sy = useSpring(y, { stiffness: 120, damping: 20 });
+  useEffect(() => {
+    const fn = (e) => { x.set(e.clientX); y.set(e.clientY) };
+    window.addEventListener("mousemove", fn);
+    return () => window.removeEventListener("mousemove", fn);
+  }, [x, y]);
+  return (
+    <>
+      <motion.div id="cur-dot" style={{ left: x, top: y, background: A }} />
+      <motion.div id="cur-ring" style={{ left: sx, top: sy, borderColor: AL }} />
+    </>
+  );
+}
+
+function ProgressBar() {
+  const { tokens: { A } } = useTheme();
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 200, damping: 30 });
+  return (
+    <motion.div style={{ scaleX, transformOrigin: "left", position: "fixed", top: 0, left: 0, right: 0, height: 2, background: A, zIndex: 9996 }} />
+  );
+}
+
+function Rev({ children, delay = 0, style = {}, className = "" }) {
+  const r = useRef(null);
+  const v = useInView(r, { once: true, margin: "-60px" });
+  return (
+    <motion.div ref={r} initial={{ opacity: 0, y: 44 }} animate={v ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.9, ease: E, delay }} style={style} className={className}>
+      {children}
+    </motion.div>
+  );
+}
+
+function Chars({ text, cls = "", style = {}, delay = 0 }) {
+  const r = useRef(null);
+  const v = useInView(r, { once: true, margin: "-40px" });
+  return (
+    <div ref={r} className={cls} style={style}>
+      {text?.split("").map((c, i) => (
+        <motion.span key={i} initial={{ y: "105%", opacity: 0 }} animate={v ? { y: 0, opacity: 1 } : {}} transition={{ duration: 0.7, ease: E, delay: delay + i * 0.028 }} style={{ display: "inline-block", whiteSpace: c === " " ? "pre" : "normal" }}>
+          {c}
+        </motion.span>
+      ))}
+    </div>
+  );
+}
+
+function Soul({ children, y = 80, s = 0.05, r = 0, delay = 0, style = {} }) {
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
+  const moveY = useTransform(scrollYProgress, [0, 0.5, 1], [y, 0, -y]);
+  const scale = useTransform(scrollYProgress, [0, 0.5, 1], [1 - s, 1, 1 - s]);
+  const opacity = useTransform(scrollYProgress, [0, 0.1, 0.9, 1], [0, 1, 1, 0]);
+  return (
+    <motion.div ref={ref} style={{ ...style, y: moveY, scale, opacity }} transition={{ ease: E, delay }}>
+      {children}
+    </motion.div>
+  );
+}
+
+function Mq({ items, dir = "l", size = "sm", bg, accent = false }) {
+  const { tokens: { A, BG, M, B } } = useTheme();
+  const bgColor = bg ?? BG;
+  const sep = "  ·  ";
+  const chunk = items.join(sep) + sep;
+  const repeated = chunk + chunk;
+  const fsMap = { sm: "0.65rem", lg: "clamp(2.2rem,5vw,4rem)", xl: "clamp(3.5rem,9vw,7.5rem)" };
+  const fs = fsMap[size];
+  const col = accent ? A : M;
+  const cls = dir === "l" ? "mq-l" : "mq-r";
+  const padV = size === "xl" ? "28px 0" : size === "lg" ? "20px 0" : "11px 0";
+  return (
+    <div style={{ overflow: "hidden", background: bgColor, borderTop: `1px solid ${B}`, borderBottom: `1px solid ${B}`, padding: padV }}>
+      <div className={cls}>
+        {[0, 1].map(i => (
+          <span key={i} className={size !== "sm" ? "font-display" : ""} style={{ fontSize: fs, fontWeight: size !== "sm" ? 700 : 500, color: col, whiteSpace: "nowrap", letterSpacing: size === "sm" ? "0.28em" : "-0.01em", textTransform: size === "sm" ? "uppercase" : "none", paddingRight: size === "sm" ? 32 : 56 }}>
+            {repeated}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SHdr({ idx, label }) {
+  const { tokens: { A, B } } = useTheme();
+  return (
+    <Rev style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 52 }}>
+      <span style={{ fontSize: 10, letterSpacing: "0.35em", fontWeight: 600, textTransform: "uppercase", color: A, whiteSpace: "nowrap" }}>{idx} — {label}</span>
+      <motion.div initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1, delay: 0.2 }} style={{ flex: 1, height: 1, background: B, transformOrigin: "left" }} />
+    </Rev>
+  );
+}
+
+/* ─── STAY SECTIONS ─────────── */
+function StayHeroCarousel({ stay, galleryItems }) {
+  const { tokens: { BG, FG, W, B, A } } = useTheme();
+
+  const containerRef = useRef(null);
+  const baseX = useMotionValue(0);
+  const [drag, setDrag] = useState(false);
+
+  // 1. Continuous Motion: Update baseX by delta * 0.05
+  // Added safety check for delta to prevent NaN values
+  useAnimationFrame((t, delta) => {
+    if (!drag) {
+      const moveBy = (delta || 16) * 0.05;
+      baseX.set(baseX.get() - moveBy);
+    }
+  });
+
+  // 4. Visual Variety: Mosaic configuration for the gallery
+  const itemConfigs = useMemo(() => [
+    { w: 420, h: 520, y: 0 },
+    { w: 320, h: 320, y: 140 },
+    { w: 520, h: 380, y: -40 },
+    { w: 380, h: 480, y: 80 },
+    { w: 480, h: 320, y: 60 },
+    { w: 320, h: 420, y: -100 },
+  ], []);
+
+  // 2. The Infinite Loop (Wrapping): Calculate W_BLOCK (totalUniqueWidth)
+  const W_BLOCK = useMemo(() => itemConfigs.reduce((sum, it) => sum + it.w + 32, 0), [itemConfigs]);
+
+  const x = useTransform(baseX, (v) => {
+    if (W_BLOCK <= 0) return "0px";
+    // Simplified seamless wrap: ensures v stays within [0, -W_BLOCK]
+    // As v decreases, this value goes 0 -> -W_BLOCK then snaps back to 0
+    const wrapped = v % W_BLOCK;
+    return `${wrapped}px`;
+  });
+
+  // Duplicated images to fill the track
+  const items = useMemo(() => Array(12).fill(itemConfigs).flat(), [itemConfigs]);
+  const title = stay?.propertyName || stay?.title || "STAY EXPERIENCE";
+
+  return (
+    <section style={{ position: "relative", height: "100vh", background: BG, overflow: "hidden", display: "flex", alignItems: "center", paddingTop: 80 }}>
+      {/* Background Decor */}
+      <motion.div
+        animate={{ opacity: [0.1, 0.2, 0.1] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, height: "60%", background: `linear-gradient(to bottom, ${A}44, transparent)`, zIndex: 2, pointerEvents: "none" }}
+      />
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "60%", background: "linear-gradient(to bottom, rgba(0,0,0,0.4), transparent)", zIndex: 2, pointerEvents: "none" }} />
+
+      <div style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", zIndex: 20, pointerEvents: "none", textAlign: "center", width: "90%" }}>
+        <Chars text={title.toUpperCase()} cls="font-display" style={{ fontSize: "clamp(3rem, 11vw, 8.5rem)", fontWeight: 700, color: W, letterSpacing: "-0.02em", lineHeight: 0.9 }} />
+        <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
+          style={{ fontSize: 12, letterSpacing: "0.45em", textTransform: "uppercase", color: "rgba(255,255,255,0.8)", marginTop: 12 }}>{toDisplayString(stay?.propertyType) || "Bespoke Stay Experience"}</motion.p>
+      </div>
+
+      <motion.div
+        onPan={(e, info) => baseX.set(baseX.get() + info.delta.x)}
+        onPanStart={() => setDrag(true)}
+        onPanEnd={() => setDrag(false)}
+        style={{ position: "absolute", inset: 0, zIndex: 10, cursor: drag ? "grabbing" : "grab" }}
+      />
+
+      <motion.div ref={containerRef} style={{ x, display: "flex", gap: 32, paddingLeft: 32, alignItems: "center", pointerEvents: "none", marginTop: -120 }}>
+        {items.map((it, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: (i % 6) * 0.05, ease: E }}
+            style={{
+              flexShrink: 0, width: it.w, height: it.h, y: it.y,
+              position: "relative", borderRadius: 24, overflow: "hidden",
+              border: `1px solid rgba(255,255,255,0.15)`,
+              boxShadow: "0 30px 60px -15px rgba(0,0,0,0.4)"
+            }}
+          >
+            <img src={galleryItems.length > 0 ? galleryItems[i % galleryItems.length] : "https://picsum.photos/seed/stay/800/600"} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" />
+          </motion.div>
+        ))}
+      </motion.div>
+
+      <div style={{ position: "absolute", bottom: 60, right: "5%", zIndex: 10, display: "flex", alignItems: "center", gap: 16 }}>
+        <span style={{ fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>Explore Gallery</span>
+        <motion.div animate={{ width: [30, 80, 30] }} transition={{ duration: 3, repeat: Infinity }} style={{ height: 1, background: "rgba(255,255,255,0.4)" }} />
+      </div>
+    </section>
+  );
+}
+
+function StayAmenities({ stay }) {
+  const { tokens: { A, FG, M, S, B, W } } = useTheme();
+
+  const amenities = [
+    { label: "High-speed WiFi", icon: Wifi },
+    { label: "Infinity Pool", icon: Waves },
+    { label: "Bespoke Spa", icon: Sparkles },
+    { label: "Elite Gym", icon: Dumbbell },
+    { label: "Private Access", icon: Umbrella },
+    { label: "Travel Hub", icon: Plane },
+    { label: "Curated Bar", icon: GlassWater },
+    { label: "Fine Dining", icon: Utensils },
+  ];
+
+  return (
+    <section style={{ background: W, padding: "140px 36px" }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+        <Soul y={100} s={0.08}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 80, borderBottom: `1px solid ${B}`, paddingBottom: 100 }}>
+            <Rev style={{ flex: "1 1 500px" }}>
+              <p style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: A, fontWeight: 700, marginBottom: 28 }}>
+                <MapPin size={16} /> {stay?.city || stay?.location || "Maldives Perspective"}
+              </p>
+              <Chars text="A sanctuary redefined" cls="font-display" style={{ fontSize: "clamp(2.5rem, 5.5vw, 5rem)", fontWeight: 700, color: FG, lineHeight: 1, marginBottom: 12 }} />
+              <Chars text="at the water's edge." delay={0.2} cls="font-display" style={{ fontSize: "clamp(2.5rem, 5.5vw, 5rem)", fontWeight: 700, color: A, lineHeight: 1, marginBottom: 32 }} />
+              <p style={{ fontSize: 16, color: M, lineHeight: 1.85, maxWidth: 600 }}>
+                {stay?.description || stay?.detailedDescription || "Experience the pinnacle of hospitality where architecture meets the raw beauty of nature. Every detail is curated to provide an untethered escape from the ordinary pace of life."}
+              </p>
+            </Rev>
+            <Rev delay={0.2} style={{ flex: "1 1 400px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px 48px", alignContent: "center" }}>
+              {amenities.map((am, i) => (
+                <motion.div key={am.label}
+                  animate={{ y: [0, (i % 2 === 0 ? -6 : 6), 0] }}
+                  transition={{ duration: 4 + i * 0.4, repeat: Infinity, ease: "easeInOut" }}
+                  style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: "50%", background: S, border: `1px solid ${B}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <am.icon size={18} color={A} />
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: FG }}>{am.label}</span>
+                </motion.div>
+              ))}
+            </Rev>
+          </div>
+        </Soul>
+
+        <Soul y={120} r={4}>
+          <div style={{ paddingTop: 100, display: "flex", flexWrap: "wrap", gap: 80 }} className="amenities-grid">
+            <Rev style={{ width: 260 }}>
+              <h3 className="font-display" style={{ fontSize: 32, fontWeight: 700, color: FG, marginBottom: 16 }}>Curated <br />Services</h3>
+              <p style={{ fontSize: 13, color: M, lineHeight: 1.7 }}>Precision hospitality ensuring every moment of your stay is frictionless.</p>
+            </Rev>
+            <Rev delay={0.2} style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "24px" }}>
+              {["Concierge Elite", "In-Room Wellness", "Private Transfers", "Reef Explorations", "Childcare Services", "Nightlife Access"].map(fac => (
+                <div key={fac} style={{ display: "flex", alignItems: "center", gap: 14, padding: "20px 24px", background: S, borderRadius: 16, border: `1px solid ${B}`, transition: "transform 0.3s" }}>
+                  <CheckCircle size={18} color={A} />
+                  <span style={{ fontSize: 14, color: FG, fontWeight: 600 }}>{fac}</span>
+                </div>
+              ))}
+            </Rev>
+          </div>
+        </Soul>
+      </div>
+    </section>
+  );
+}
+
+function ImgParallax({ src, alt }) {
+  const r = useRef(null);
+  const { scrollYProgress } = useScroll({ target: r, offset: ["start end", "end start"] });
+  const y = useTransform(scrollYProgress, [0, 1], ["-12%", "12%"]);
+  return (
+    <div ref={r} style={{ width: "100%", height: "124%", position: "absolute", top: "-12%", left: 0 }}>
+      <motion.img src={src} style={{ y, width: "100%", height: "100%", objectFit: "cover" }} alt={alt} />
+    </div>
+  );
+}
+
+function PolicyItem({ rule, A, FG, M, B }) {
+  const [op, setOp] = useState(false);
+  return (
+    <motion.div key={rule.id} style={{ borderBottom: `1px solid ${B}` }}>
+      <button onClick={() => setOp(!op)}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "30px 20px", background: "none", border: "none", cursor: "none", textAlign: "left" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <FileText size={20} color={op ? A : M} />
+          <motion.span animate={{ color: op ? A : FG }} style={{ fontSize: 16, fontWeight: 700 }}>{rule.title}</motion.span>
+        </div>
+        <motion.div animate={{ rotate: op ? 180 : 0 }} transition={{ duration: 0.4 }}>
+          <ChevronDown size={18} color={M} />
+        </motion.div>
+      </button>
+      <AnimatePresence>
+        {op && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.4, ease: E }} style={{ overflow: "hidden" }}>
+            <p style={{ padding: "0 20px 40px 64px", fontSize: 14, color: M, lineHeight: 1.85, maxWidth: 640 }}>{rule.body}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function StayPoliciesAndContact({ stay, hostData, hostAvatar }) {
+  const { tokens: { A, AL, BG, FG, M, S, B, W } } = useTheme();
+  const policies = [
+    { id: 1, title: "Check-in / Check-out", body: "Check-in from 2:00 PM. Check-out by 11:00 AM. Early arrivals or late departures are subject to availability and may incur fees." },
+    { id: 2, title: "Resort Etiquette", body: "We observe quiet hours from 10:00 PM. Our property is a non-smoking sanctuary. Guests are encouraged to respect the natural coral reef systems." },
+    { id: 3, title: "Reservation Terms", body: "Cancellations made within 7 days of arrival are subject to a 100% penalty. Special event bookings may have unique terms." }
+  ];
+
+  return (
+    <section style={{ background: W, padding: "140px 36px" }}>
+      <div style={{ maxWidth: 1320, margin: "0 auto", display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 100 }} className="pol-contact-grid">
+        <Soul y={150} r={-2}>
+          <SHdr idx="03" label="Stay Guidelines" />
+          <div style={{ borderTop: `1px solid ${B}` }}>
+            {policies.map((rule) => (
+              <PolicyItem key={rule.id} rule={rule} A={A} FG={FG} M={M} B={B} />
+            ))}
+          </div>
+        </Soul>
+
+        <Rev delay={0.2}>
+          <div style={{ background: BG, padding: 56, border: `1px solid ${B}`, borderRadius: 32, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", boxShadow: "0 40px 80px -20px rgba(0,0,0,0.1)" }}>
+            <div>
+              <p style={{ fontSize: 10, letterSpacing: "0.25em", textTransform: "uppercase", color: A, marginBottom: 32, fontWeight: 700 }}>Direct Curator</p>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 48 }}>
+                <div style={{ width: 72, height: 72, borderRadius: "50%", background: S, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${B}`, overflow: "hidden" }}>
+                  <img src={hostAvatar || "https://picsum.photos/seed/host/100/100"} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" />
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, color: M, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 6 }}>Managed by</p>
+                  <p style={{ fontSize: 20, fontWeight: 800, color: FG }}>{hostData?.displayName || "Lead Ambassador"}</p>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: 56 }}>
+                <a href={`tel:${hostData?.phone}`} style={{ display: "flex", alignItems: "center", gap: 14, textDecoration: "none" }}>
+                  <Phone size={18} color={A} />
+                  <span style={{ fontSize: 16, fontWeight: 600, color: FG }}>{hostData?.phone || "Contact via Portal"}</span>
+                </a>
+                <a href={`mailto:${hostData?.email}`} style={{ display: "flex", alignItems: "center", gap: 14, textDecoration: "none" }}>
+                  <Mail size={18} color={A} />
+                  <span style={{ fontSize: 16, fontWeight: 600, color: FG }}>{hostData?.email || "reservations@property.com"}</span>
+                </a>
+              </div>
+            </div>
+
+            <motion.button className="shimmer-cta" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} style={{ width: "100%", padding: 20, border: "none", cursor: "none", textTransform: "uppercase", letterSpacing: "0.2em", fontSize: 11 }}>
+              Verify Availability
+            </motion.button>
+          </div>
+        </Rev>
+      </div>
+    </section>
+  );
+}
+
+/* ─── MAIN COMPONENT ─────────── */
 const StayDetails = () => {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
@@ -69,185 +476,112 @@ const StayDetails = () => {
   const [hostData, setHostData] = useState(null);
   const [galleryItems, setGalleryItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  // Shared room + meal plan selection (set by RoomCards, consumed by Description)
   const [externalRoomId, setExternalRoomId] = useState(null);
   const [externalMealPlan, setExternalMealPlan] = useState(null);
   const [externalRoomsCount, setExternalRoomsCount] = useState(1);
 
+  const formatImageUrl = (url) => {
+    if (!url) return null;
+    if (typeof url !== "string") url = url?.url ?? url?.src ?? url?.imageUrl;
+    if (!url) return null;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    if (url.startsWith("/")) return url;
+    return `https://lkpleadstoragedev.blob.core.windows.net/lead-documents/${encodeURI(url.replaceAll("%2F", "/"))}`;
+  };
+
   const handleRoomSelect = useCallback((roomId, mealPlan) => {
     const newRoomId = String(roomId);
-    if (newRoomId !== externalRoomId) {
-      setExternalRoomsCount(1);
-    }
+    if (newRoomId !== externalRoomId) setExternalRoomsCount(1);
     setExternalRoomId(newRoomId);
     setExternalMealPlan(mealPlan || null);
   }, [externalRoomId]);
 
   useEffect(() => {
     let mounted = true;
-
     const load = async () => {
       try {
         if (!id) return;
-
         setLoading(true);
         const data = await getStayDetails(id);
         if (!mounted) return;
 
         if (data) {
           setStay(data);
-
-          // Build gallery for the shared <Product/> component.
           const galleryImages = [];
-          const cover =
-            data.coverPhotoUrl ||
-            data.coverImageUrl ||
-            data.coverPhoto ||
-            data.coverImage ||
-            data.cover;
-
+          const cover = data.coverPhotoUrl || data.coverImageUrl || data.coverPhoto || data.coverImage || data.cover;
           if (cover) galleryImages.push(formatImageUrl(cover));
 
-          const collectFromArray = (arr) => {
-            if (!Array.isArray(arr)) return;
-            arr.forEach((m) => {
-              const url = typeof m === "string" ? m : m?.url ?? m?.src ?? m?.imageUrl;
-              if (url) galleryImages.push(formatImageUrl(url));
+          const collect = (arr) => {
+            if (Array.isArray(arr)) arr.forEach(m => {
+              const u = typeof m === "string" ? m : m?.url ?? m?.src ?? m?.imageUrl;
+              if (u) galleryImages.push(formatImageUrl(u));
             });
           };
+          collect(data.media); collect(data.images); collect(data.stayMedia);
 
-          // Common fields used across the repo for listing media.
-          collectFromArray(data.media);
-          collectFromArray(data.images);
-          collectFromArray(data.stayMedia);
-
-          // De-dupe while preserving order.
           const seen = new Set();
-          const deduped = galleryImages.filter((u) => {
-            if (!u) return false;
-            if (seen.has(u)) return false;
-            seen.add(u);
-            return true;
-          });
-
-          setGalleryItems(deduped);
+          setGalleryItems(galleryImages.filter(u => u && !seen.has(u) && seen.add(u)));
 
           const hostId = data.hostId || data.host?.hostId || data.leadUserId || data.userId;
-          if (hostId) {
-            getHost(hostId)
-              .then((hostResponse) => {
-                if (mounted) setHostData(hostResponse || null);
-              })
-              .catch((err) => console.warn("Failed to fetch host data:", err));
-          }
+          if (hostId) getHost(hostId).then(h => mounted && setHostData(h || null)).catch(e => console.warn(e));
         }
-
         setLoading(false);
       } catch (e) {
         console.error("Failed to load stay details", e);
         setLoading(false);
       }
     };
-
     load();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [id]);
 
-  const options = useMemo(() => {
-    const opts = [];
-
-    const propertyTypeLabel = toDisplayString(stay?.propertyType || stay?.property_type || stay?.type);
-    if (propertyTypeLabel) opts.push({ title: propertyTypeLabel, icon: "building" });
-
-    const cityOrLocation = toDisplayString(stay?.city || stay?.location || stay?.fullAddress || stay?.address);
-    if (cityOrLocation) opts.push({ title: cityOrLocation, icon: "flag" });
-
-    const categoryLabel = toDisplayString(stay?.category);
-    if (categoryLabel && !propertyTypeLabel) opts.push({ title: categoryLabel, icon: "route" });
-
-    if (!opts.length) {
-      opts.push({ title: "Stay", icon: "building" });
-    }
-
-    return opts;
-  }, [stay]);
-
   const hostAvatar = useMemo(() => {
-    const avatarUrl =
-      hostData?.host?.profilePhotoUrl ||
-      hostData?.host?.profilePhoto ||
-      stay?.host?.profilePhotoUrl ||
-      stay?.host?.profilePhoto;
-
+    const avatarUrl = hostData?.host?.profilePhotoUrl || hostData?.host?.profilePhoto || stay?.host?.profilePhotoUrl || stay?.host?.profilePhoto;
     return avatarUrl ? formatImageUrl(avatarUrl) : null;
   }, [hostData, stay]);
 
   if (loading && !stay) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "50vh" }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
         <Loader />
       </div>
     );
   }
 
   return (
-    <>
-      <Product
-        classSection="section-mb64"
-        title={stay?.propertyName || stay?.title || "Stay Details"}
-        options={options}
-        gallery={galleryItems}
-        type="experience"
-        rating={stay?.rating || stay?.averageRating}
-        reviews={stay?.totalReviews || stay?.reviewCount}
-        hostAvatar={hostAvatar}
-      />
+    <ScopedThemeProvider>
+      <ScopedStyles />
+      <ProgressBar />
+      <Cursor />
 
-      {stay && (
-        <>
-          <Description 
-            classSection="section" 
-            listing={stay} 
-            hostData={hostData} 
-            externalRoomId={externalRoomId} 
-            externalMealPlan={externalMealPlan} 
+      <StayHeroCarousel stay={stay} galleryItems={galleryItems} />
+
+      <Mq items={["Island Sanctuary", "The Living Reef", "Azure Deep", "Bespoke Luxury"]} size="sm" bg={THEMES.light.S} accent />
+
+      <StayAmenities stay={stay} />
+
+      <Mq items={["Island Sanctuary", "Ocean Perspective", "Curated Luxury", "Azure Horizon"]} dir="r" size="lg" bg={THEMES.light.S} />
+
+      <div style={{ background: THEMES.light.BG, padding: "80px 36px 140px" }}>
+        <div style={{ maxWidth: 1320, margin: "0 auto" }}>
+          <SHdr idx="02" label="Accommodations" />
+          <RoomCards
+            listing={stay}
             onRoomSelect={handleRoomSelect}
-            selectedRoomId={externalRoomId}
-            externalRoomsCount={externalRoomsCount}
-            onRoomsCountChange={setExternalRoomsCount}
-          />
-          <RoomCards 
-            listing={stay} 
-            onRoomSelect={handleRoomSelect} 
             selectedRoomId={externalRoomId}
             roomsCount={externalRoomsCount}
             onRoomsCountChange={setExternalRoomsCount}
-            noContainer 
+            noContainer
           />
-          <TabSection classSection="section" listing={stay} />
-          <CommentsProduct
-            className={cn("section")}
-            parametersUser={[]}
-            socials={[]}
-            info={stay?.description || stay?.detailedDescription || stay?.shortDescription || "Enjoy your stay."}
-            buttonText="Book Now"
-            hostData={hostData}
-          />
-        </>
-      )}
+        </div>
+      </div>
 
-      <Browse
-        classSection="section"
-        headSmall
-        classTitle="h4"
-        title="More stays to explore"
-        items={browse2}
-      />
-    </>
+      <Mq items={["Bespoke Service", "Privacy Guaranteed", "Direct Connection"]} size="sm" bg={THEMES.light.S} accent />
+
+      <StayPoliciesAndContact stay={stay} hostData={hostData} hostAvatar={hostAvatar} />
+
+    </ScopedThemeProvider>
   );
 };
 
 export default StayDetails;
-
