@@ -101,6 +101,38 @@ const getTicketSlotRestrictions = (ticket) => {
   return source || [];
 };
 
+const getDateKey = (value) => {
+  if (!value) return "";
+  if (typeof value?.format === "function") return value.format("YYYY-MM-DD");
+  if (typeof value === "string") {
+    const match = value.match(/\d{4}-\d{2}-\d{2}/);
+    if (match) return match[0];
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+};
+
+const addDateRangeKeys = (keys, startValue, endValue) => {
+  const startKey = getDateKey(startValue);
+  const endKey = getDateKey(endValue || startValue);
+  if (!startKey) return;
+
+  const start = new Date(`${startKey}T00:00:00`);
+  const end = new Date(`${endKey}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    keys.add(startKey);
+    return;
+  }
+
+  const current = start <= end ? start : end;
+  const last = start <= end ? end : start;
+  while (current <= last) {
+    keys.add(current.toISOString().slice(0, 10));
+    current.setDate(current.getDate() + 1);
+  }
+};
+
 const normalizeEventSlots = (slots = [], fallbackPrice = 0) => (
   Array.isArray(slots) ? slots
     .map((slot, index) => {
@@ -195,6 +227,30 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
   const selectedEventSlots = useMemo(() => (
     eventSlots.filter((slot, index) => selectedEventSlotIds.includes(String(slot.eventSlotId ?? slot.id)) && isEventSlotAccessible(slot, index))
   ), [eventSlots, selectedEventSlotIds, isEventSlotAccessible]);
+  const eventAvailableDateKeys = useMemo(() => {
+    if (!isEventBooking) return new Set();
+    const keys = new Set();
+
+    eventSlots.forEach((slot, index) => {
+      if (!isEventSlotAccessible(slot, index)) return;
+      addDateRangeKeys(
+        keys,
+        slot.slotStartDate || slot.slotDate || slot.date || slot.eventDate || slot.startDate,
+        slot.slotEndDate || slot.endDate || slot.end_date
+      );
+    });
+
+    addDateRangeKeys(
+      keys,
+      listing?.startDate || listing?.eventStartDate || listing?.bookingStartDate,
+      listing?.endDate || listing?.eventEndDate || listing?.bookingEndDate || listing?.startDate
+    );
+
+    return keys;
+  }, [eventSlots, isEventBooking, isEventSlotAccessible, listing?.bookingEndDate, listing?.bookingStartDate, listing?.endDate, listing?.eventEndDate, listing?.eventStartDate, listing?.startDate]);
+  const isEventDateHighlighted = useCallback((day) => (
+    isEventBooking && eventAvailableDateKeys.has(getDateKey(day))
+  ), [eventAvailableDateKeys, isEventBooking]);
 
   const listingId = listing?.listingId;
 
@@ -591,6 +647,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
                       placeholder="Pick a date"
                       id="jui-booking-date"
                       plain
+                      isDayHighlighted={isEventBooking ? isEventDateHighlighted : undefined}
                     />
                   </div>
 
