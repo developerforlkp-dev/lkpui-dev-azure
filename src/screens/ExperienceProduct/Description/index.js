@@ -228,89 +228,6 @@ const Description = ({ classSection, listing, hostData, externalRoomId, external
       })
       .filter(Boolean);
   }, [stayAvailabilityResult, listing, guests]);
-  const stayMealPlanOptions = useMemo(() => {
-    if (!isStay || !listing) return [];
-
-    const MEAL_LABELS_FULL = {
-      EP: "Room Only (EP)",
-      BB: "Bed & Breakfast (BB)",
-      CP: "Continental Plan (CP)",
-      MAP: "Half Board (MAP)",
-      AP: "Full Board (AP)"
-    };
-
-    let plans = [];
-
-    if (isPropertyBased) {
-      const stayProp = listing?.stay || listing;
-      if (stayProp?.mealPlanPricing && typeof stayProp.mealPlanPricing === "object") {
-        plans = Object.keys(stayProp.mealPlanPricing);
-      } else {
-        // Fallback: check legacy price fields
-        if (stayProp?.epPrice || stayProp?.startingPrice || stayProp?.b2cPrice) plans.push("EP");
-        if (stayProp?.bbPrice) plans.push("BB");
-        if (stayProp?.cpPrice) plans.push("CP");
-        if (stayProp?.mapPrice) plans.push("MAP");
-        if (stayProp?.apPrice) plans.push("AP");
-      }
-    } else {
-      // Room-based: meal plans of selected room
-      const rooms = listing?.rooms || listing?.roomTypes || listing?.room_types || listing?.stay?.rooms || [];
-      const selRoom = rooms.find(r => String(r.roomId ?? r.id ?? r.roomTypeId ?? r.code) === String(staySelectedRoomType));
-      if (selRoom) {
-        if (selRoom.mealPlanPricing && typeof selRoom.mealPlanPricing === "object") {
-          plans = Object.keys(selRoom.mealPlanPricing);
-        } else {
-          if (selRoom.epPrice) plans.push("EP");
-          if (selRoom.bbPrice) plans.push("BB");
-          if (selRoom.cpPrice) plans.push("CP");
-          if (selRoom.mapPrice) plans.push("MAP");
-          if (selRoom.apPrice) plans.push("AP");
-        }
-      }
-    }
-
-    // Deduplicate and map with prices
-    const currency = listing?.stay?.currency || listing?.currency || "INR";
-
-    return [...new Set(plans)].map(code => {
-      let pricePa = 0;
-      if (isPropertyBased) {
-        const stayProp = listing?.stay || listing;
-        if (stayProp?.mealPlanPricing?.[code]) {
-          pricePa = parseFloat(stayProp.mealPlanPricing[code].b2cPrice || stayProp.mealPlanPricing[code].price || 0);
-        } else {
-          if (code === "EP") pricePa = parseFloat(stayProp?.epPrice || stayProp?.startingPrice || stayProp?.b2cPrice || 0);
-          else if (code === "BB") pricePa = parseFloat(stayProp?.bbPrice || 0);
-          else if (code === "CP") pricePa = parseFloat(stayProp?.cpPrice || 0);
-          else if (code === "MAP") pricePa = parseFloat(stayProp?.mapPrice || 0);
-          else if (code === "AP") pricePa = parseFloat(stayProp?.apPrice || 0);
-        }
-      } else {
-        // For room-based, price is harder to show in a general list without more logic,
-        // but we can try to find it for the selected room
-        const rooms = listing?.rooms || listing?.roomTypes || listing?.room_types || listing?.stay?.rooms || [];
-        const selRoom = rooms.find(r => String(r.roomId ?? r.id ?? r.roomTypeId ?? r.code) === String(staySelectedRoomType));
-        if (selRoom) {
-          if (selRoom.mealPlanPricing?.[code]) {
-            pricePa = parseFloat(selRoom.mealPlanPricing[code].b2cPrice || selRoom.mealPlanPricing[code].price || 0);
-          } else {
-            if (code === "EP") pricePa = parseFloat(selRoom.epPrice || selRoom.b2cPrice || 0);
-            else if (code === "BB") pricePa = parseFloat(selRoom.bbPrice || 0);
-            else if (code === "CP") pricePa = parseFloat(selRoom.cpPrice || 0);
-            else if (code === "MAP") pricePa = parseFloat(selRoom.mapPrice || 0);
-            else if (code === "AP") pricePa = parseFloat(selRoom.apPrice || 0);
-          }
-        }
-      }
-
-      const pricePart = pricePa > 0 ? ` (+ ${currency} ${pricePa.toFixed(0)})` : "";
-      return {
-        value: code,
-        label: (MEAL_LABELS_FULL[code] || code) + pricePart
-      };
-    });
-  }, [isStay, isPropertyBased, listing, staySelectedRoomType]);
   const guestCountText = useMemo(() => {
     if (!isStay && !hasSelectedGuests) return "Add guests";
     const total = getGuestCount(guests);
@@ -2593,38 +2510,6 @@ const Description = ({ classSection, listing, hostData, externalRoomId, external
     const currency = listing?.stay?.currency || listing?.currency || "INR";
     return price > 0 ? `${currency} ${price.toFixed(2)}` : "";
   }, [listing, isStay, isPropertyBased, slotsData, lowestRoomPrice]);
-
-  const handleCheckStayAvailability = async () => {
-    try {
-      if (!isStay || isPropertyBased) return;
-      const stayId = listing?.stayId || listing?.stay_id || listing?.id;
-      if (!stayId) return;
-      if (!selectedDate || !selectedEndDate) return;
-
-      // Validate guest count against room capacities before checking availability
-      if (stayRoomTypeOptions.length === 0) {
-        alert("No room with the guest availability.");
-        return;
-      }
-
-      setStayAvailabilityLoading(true);
-
-      const checkInDate = selectedDate.format("YYYY-MM-DD");
-      const checkOutDate = selectedEndDate.format("YYYY-MM-DD");
-
-      const res = await getStayRoomAvailability(stayId, checkInDate, checkOutDate);
-      console.log("✅ Stay room availability (raw):", res);
-
-      setStayAvailabilityResult(res);
-      setStayAvailabilityChecked(true);
-    } catch (err) {
-      console.error("❌ Stay room availability failed:", err?.response?.data || err?.message || err);
-      setStayAvailabilityResult(null);
-      setStayAvailabilityChecked(false);
-    } finally {
-      setStayAvailabilityLoading(false);
-    }
-  };
 
   const handleBookStay = async (e) => {
     if (e) {

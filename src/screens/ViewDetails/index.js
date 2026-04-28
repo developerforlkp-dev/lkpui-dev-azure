@@ -7,7 +7,6 @@ import { getBookingDetails } from "../../mocks/bookings";
 import { getListing, getOrderDetails, getEventOrderDetails, getEventDetails, submitOrderReview, getStayDetails, cancelOrder, cancelEventOrder, getEligibleBookings } from "../../utils/api";
 import Rating from "../../components/Rating";
 import Modal from "../../components/Modal";
-import Receipt from "../../components/Receipt";
 import html2pdf from "html2pdf.js";
 
 // Helper function to format image URLs

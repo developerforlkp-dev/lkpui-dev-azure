@@ -9,7 +9,6 @@ import TabSection from "./TabSection";
 import CommentsProduct from "../../components/CommentsProduct";
 import Browse from "../../components/Browse";
 import Loader from "../../components/Loader";
-import { browse2 } from "../../mocks/browse";
 import {
   DEFAULT_API_BASE_URL,
   getListing,
