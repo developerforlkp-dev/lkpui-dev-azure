@@ -105,7 +105,6 @@ const ScopedStyles = () => (
     .event-details-premium .font-mono { font-family: 'Courier New', Courier, monospace; }
     .event-details-premium .mq-l { display: flex; white-space: nowrap; animation: marquee-l 30s linear infinite; }
     .event-details-premium .mq-r { display: flex; white-space: nowrap; animation: marquee-r 34s linear infinite; }
-    .event-details-premium .mq-l:hover, .event-details-premium .mq-r:hover { animation-play-state: paused; }
     .event-details-premium .float-anim { animation: float 6s ease-in-out infinite; }
     .event-details-premium .shimmer-cta {
       background: linear-gradient(90deg, var(--A) 0%, var(--AH) 40%, var(--A) 60%, var(--A) 100%);
