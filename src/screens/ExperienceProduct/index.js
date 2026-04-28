@@ -5,8 +5,6 @@ import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { ArrowDown, Check, Zap, MapPin, ChevronDown, Clock, User, Camera, Coffee, Phone, Info, Plus, Baby, Languages, ShieldCheck } from "lucide-react";
 import { useTheme } from "../../components/JUI/Theme";
 import { Cursor, ProgressBar, Rev, Chars, Mq, SHdr, E, Soul } from "../../components/JUI/UI";
-import Header from "../../components/Header";
-import { Footer } from "../../components/JUI/Footer";
 import { BookingSystem } from "../../components/JUI/BookingSystem";
 import Loader from "../../components/Loader";
 import {
@@ -15,6 +13,7 @@ import {
   getLeadDetails,
 } from "../../utils/api";
 import { buildExperienceUrl, extractExperienceIdFromSlugAndId } from "../../utils/experienceUrl";
+import Page from "../../components/Page";
 
 const formatImageUrl = (url) => {
   if (!url) return null;
@@ -58,6 +57,8 @@ function ExperienceBg({ progress, src }) {
   );
 }
 
+
+
 const ExperienceProduct = () => {
   const location = useLocation();
   const history = useHistory();
@@ -75,7 +76,6 @@ const ExperienceProduct = () => {
   const [selectedAddOns, setSelectedAddOns] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sc, setSc] = useState(false);
 
   const handleToggleAddon = (addon) => {
     const addonId = addon.addonId || addon.id;
@@ -146,12 +146,6 @@ const ExperienceProduct = () => {
     return () => { mounted = false; };
   }, [id]);
 
-  useEffect(() => {
-    const h = () => setSc(window.scrollY > 40);
-    window.addEventListener("scroll", h);
-    return () => window.removeEventListener("scroll", h);
-  }, []);
-
   const heroRef = useRef(null);
   const { scrollYProgress: heroProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const textY = useTransform(heroProgress, [0, 1], [0, -200]);
@@ -166,22 +160,7 @@ const ExperienceProduct = () => {
   const displayTags = listing?.tags || [];
 
   return (
-    <>
-      <motion.div
-        className={cn("slim-header-wrapper", { "force-dark": !sc && theme === "light" })}
-        initial={{ y: -72, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.85, ease: E }}
-        style={{
-          position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-          transition: "all 0.4s",
-          background: sc ? (theme === 'light' ? "rgba(251,251,249,0.92)" : "rgba(8,8,8,0.92)") : "transparent",
-          backdropFilter: sc ? "blur(20px)" : "none",
-          borderBottom: sc ? `1px solid ${B}` : "1px solid transparent"
-        }}
-      >
-        <Header />
-      </motion.div>
+    <Page>
       <main style={{ background: BG }}>
         {/* HERO SECTION */}
         <section ref={heroRef} style={{ position: "relative", minHeight: "110vh", overflow: "hidden", display: "flex", alignItems: "center" }}>
@@ -563,7 +542,6 @@ const ExperienceProduct = () => {
           </div>
         </section>
 
-        <Footer />
         <BookingSystem listing={listing} selectedAddOns={selectedAddOns} />
       </main>
       <style>{`
@@ -575,21 +553,8 @@ const ExperienceProduct = () => {
           .prep-grid { grid-template-columns: 1fr !important; gap: 48px !important; }
           .host-grid { grid-template-columns: 1fr !important; }
         }
-        .slim-header-wrapper > div { padding: 4px 0 !important; }
-        .slim-header-wrapper img { width: 140px !important; }
-        
-        /* Force dark styles when over hero in light mode */
-        .force-dark [class*="Header_link"], 
-        .force-dark [class*="Header_bookingsLink"],
-        .force-dark [class*="Header_themeToggle"] svg {
-          color: #FCFCFD !important;
-          fill: #FCFCFD !important;
-        }
-        .force-dark [class*="Header_logo"] img {
-          filter: brightness(0) invert(1) !important;
-        }
       `}</style>
-    </>
+    </Page>
   );
 };
 
