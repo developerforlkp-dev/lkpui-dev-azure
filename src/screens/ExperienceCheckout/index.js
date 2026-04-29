@@ -210,6 +210,16 @@ const Checkout = () => {
                   total: (Number(prevPricing.total || 0) > 0)
                     ? prevPricing.total
                     : (serverPricing.total || serverPricing.totalPrice || serverPricing.finalAmount || 0),
+                  // Always preserve child-pricing fields from local — server never returns these
+                  pricePerPerson: (Number(prevPricing.pricePerPerson || 0) > 0)
+                    ? prevPricing.pricePerPerson
+                    : (serverPricing.pricePerPerson || 0),
+                  allowChildPricing: prevPricing.allowChildPricing ?? serverPricing.allowChildPricing ?? false,
+                  adultsCount: prevPricing.adultsCount ?? serverPricing.adultsCount,
+                  childrenCount: prevPricing.childrenCount ?? serverPricing.childrenCount,
+                  childPricePerChild: (Number(prevPricing.childPricePerChild || 0) > 0)
+                    ? prevPricing.childPricePerChild
+                    : (serverPricing.childPricePerChild || 0),
                 },
               };
             });
@@ -491,9 +501,10 @@ const Checkout = () => {
   }
 
   const listingTitle = bookingData?.listingTitle || "Your trip";
+  const isEventBooking = Boolean(bookingData?.eventId);
   const backUrl =
     bookingData?.returnTo ||
-    (bookingData?.eventId ? `/event?id=${bookingData.eventId}` : null);
+    (isEventBooking ? `/event?id=${bookingData.eventId}` : null);
   const breadcrumbs = [
     {
       title: "Booking details",
@@ -537,7 +548,7 @@ const Checkout = () => {
         <div className={styles.wrapper}>
           <ConfirmAndPay
             className={styles.confirm}
-            title="Your trip"
+            title={isEventBooking ? "Your event" : "Your trip"}
             buttonUrl="/experience-checkout-complete"
             guests
             amountToPay={paymentData?.amount}
