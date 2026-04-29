@@ -647,8 +647,82 @@ const ExperienceProduct = () => {
   );
 };
 
+function RequirementField({ question, A, FG, M, B, AL, S }) {
+  const [value, setValue] = useState(""); 
+  const fieldType = question.fieldType || question.question?.fieldType;
+  const title = question.title || question.question?.title;
+
+  if (fieldType === 'boolean') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderBottom: `1px dashed ${B}` }}>
+        <span style={{ fontSize: 14, color: FG, fontWeight: 500 }}>{title}</span>
+        <div 
+          onClick={() => setValue(!value)}
+          style={{ 
+            width: 44, height: 24, borderRadius: 12, background: value ? A : B, 
+            position: 'relative', cursor: 'pointer', transition: '0.3s' 
+          }}
+        >
+          <motion.div 
+            animate={{ x: value ? 22 : 2 }}
+            style={{ 
+              width: 20, height: 20, borderRadius: '50%', background: '#FFF', 
+              position: 'absolute', top: 2 
+            }} 
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (fieldType === 'text_single') {
+    return (
+      <div style={{ padding: '20px 0', borderBottom: `1px dashed ${B}` }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 12 }}>{title}</p>
+        <input 
+          type="text" 
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Type your answer..."
+          style={{ 
+            width: '100%', padding: '16px 24px', borderRadius: 16, 
+            border: `1px solid ${B}`, background: AL, color: FG, outline: 'none',
+            fontSize: 14, fontWeight: 500
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (fieldType === 'text_multi') {
+    return (
+      <div style={{ padding: '20px 0', borderBottom: `1px dashed ${B}` }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 12 }}>{title}</p>
+        <textarea 
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Enter details..."
+          rows={3}
+          style={{ 
+            width: '100%', padding: '16px 24px', borderRadius: 16, 
+            border: `1px solid ${B}`, background: AL, color: FG, outline: 'none',
+            resize: 'vertical', fontSize: 14, fontWeight: 500, lineHeight: 1.6
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <li style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+      <div style={{ width: 6, height: 6, background: A, borderRadius: "50%", flexShrink: 0, marginTop: 6 }} />
+      <span style={{ fontSize: 14, color: FG, lineHeight: 1.4, fontWeight: 500 }}>{title}</span>
+    </li>
+  );
+}
+
 function PolicyItem({ req }) {
-  const { tokens: { FG, A, M, AL, B } } = useTheme();
+  const { tokens: { FG, A, M, AL, B, S } } = useTheme();
   const [op, setOp] = useState(false);
 
   const title = req.setting?.title;
@@ -693,10 +767,7 @@ function PolicyItem({ req }) {
             <div style={{ padding: "20px", background: AL, borderRadius: 16, border: `1px solid ${B}` }}>
               <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 12, padding: 0, margin: 0 }}>
                 {questions.map((q, j) => (
-                  <li key={j} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                    <div style={{ width: 6, height: 6, background: A, borderRadius: "50%", flexShrink: 0, marginTop: 6 }} />
-                    <span style={{ fontSize: 14, color: FG, lineHeight: 1.4, fontWeight: 500 }}>{q.question?.title}</span>
-                  </li>
+                  <RequirementField key={j} question={q} A={A} FG={FG} M={M} B={B} AL={AL} S={S} />
                 ))}
               </ul>
             </div>
