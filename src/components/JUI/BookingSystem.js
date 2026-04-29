@@ -8,7 +8,7 @@ import { Rev, Chars } from "./UI";
 
 import TimeSlotsPicker from "../TimeSlotsPicker";
 import Counter from "../Counter";
-import { createEventOrder, createOrder, getEventSlotAvailability } from "../../utils/api";
+import { createEventOrder, createOrder, getEventSlotAvailability, getListingSlots } from "../../utils/api";
 
 const asNumber = (value) => {
   const parsed = Number(value);
@@ -36,6 +36,16 @@ const formatSaleDate = (date) => (
 const asSeatLimit = (value) => {
   const parsed = asNumber(value);
   return parsed != null && parsed >= 0 ? parsed : undefined;
+};
+
+const asBoolean = (value, fallback = false) => {
+  if (value === true || value === false) return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return fallback;
 };
 
 const getSlotSeatLimit = (slot) => (
@@ -199,6 +209,34 @@ const getEffectiveTicketPrice = (ticket, quantity, fallbackPrice = 0) => {
   };
 };
 
+const getGroupPricingTierPrice = (tiers = [], guestCount = 0) => {
+  if (!Array.isArray(tiers) || tiers.length === 0) return null;
+
+  const tier = tiers.find((item) => {
+    const min = asNumber(
+      item?.group_count_from ??
+      item?.groupCountFrom ??
+      item?.minQuantity ??
+      item?.min_quantity ??
+      item?.minGuests ??
+      item?.min_guests
+    ) ?? 0;
+    const max = asNumber(
+      item?.group_count_upto ??
+      item?.groupCountUpto ??
+      item?.maxQuantity ??
+      item?.max_quantity ??
+      item?.maxGuests ??
+      item?.max_guests
+    ) ?? Infinity;
+    return guestCount >= min && guestCount <= max;
+  });
+
+  return tier
+    ? asNumber(tier.price_per_person ?? tier.pricePerPerson ?? tier.price ?? tier.amount)
+    : null;
+};
+
 const getRateFromPricing = (...values) => {
   for (const value of values) {
     const parsed = asNumber(value);
@@ -310,7 +348,17 @@ const getDateKey = (value) => {
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+};
+
+const makeLocalDate = (dateKey) => {
+  const match = String(dateKey || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return new Date(dateKey);
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 };
 
 const normalizeBookingTime = (value) => {
@@ -340,8 +388,8 @@ const addDateRangeKeys = (keys, startValue, endValue) => {
   const endKey = getDateKey(endValue || startValue);
   if (!startKey) return;
 
-  const start = new Date(`${startKey}T00:00:00`);
-  const end = new Date(`${endKey}T00:00:00`);
+  const start = makeLocalDate(startKey);
+  const end = makeLocalDate(endKey);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     keys.add(startKey);
     return;
@@ -350,9 +398,18 @@ const addDateRangeKeys = (keys, startValue, endValue) => {
   const current = start <= end ? start : end;
   const last = start <= end ? end : start;
   while (current <= last) {
-    keys.add(current.toISOString().slice(0, 10));
+    keys.add(getDateKey(current));
     current.setDate(current.getDate() + 1);
   }
+};
+
+const WEEKDAY_CODES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+const getSelectedDayCodes = (source = {}) => {
+  const schedule = source.schedule || {};
+  const selectedDays = source.selected_days || source.selectedDays || schedule.selected_days || schedule.selectedDays;
+  if (!Array.isArray(selectedDays) || selectedDays.length === 0) return null;
+  return new Set(selectedDays.map((day) => String(day).trim().toUpperCase()).filter(Boolean));
 };
 
 const hasWeekdayFlags = (source = {}) => (
@@ -375,6 +432,9 @@ const hasWeekdayFlags = (source = {}) => (
 );
 
 const isWeekdayEnabled = (source = {}, weekday) => {
+  const selectedDayCodes = getSelectedDayCodes(source);
+  if (selectedDayCodes) return selectedDayCodes.has(WEEKDAY_CODES[weekday]);
+
   const flags = [
     [source.isSunday, source.is_sunday],
     [source.isMonday, source.is_monday],
@@ -390,28 +450,43 @@ const isWeekdayEnabled = (source = {}, weekday) => {
 };
 
 const addScheduleDateKeys = (keys, source = {}, fallback = {}) => {
+  const schedule = source.schedule || {};
   const startKey = getDateKey(
     source.startDate ||
+    source.start_date ||
     source.slotStartDate ||
+    source.slot_start_date ||
     source.availableFrom ||
+    source.available_from ||
     source.bookingStartDate ||
+    source.booking_start_date ||
+    schedule.startDate ||
+    schedule.start_date ||
     fallback.startDate ||
+    fallback.start_date ||
     fallback.bookingStartDate
   );
   const endKey = getDateKey(
     source.endDate ||
+    source.end_date ||
     source.slotEndDate ||
+    source.slot_end_date ||
     source.availableTo ||
+    source.available_to ||
     source.bookingEndDate ||
+    source.booking_end_date ||
+    schedule.endDate ||
+    schedule.end_date ||
     fallback.endDate ||
+    fallback.end_date ||
     fallback.bookingEndDate ||
     startKey
   );
 
   if (!startKey) return;
 
-  const start = new Date(`${startKey}T00:00:00`);
-  const end = new Date(`${endKey || startKey}T00:00:00`);
+  const start = makeLocalDate(startKey);
+  const end = makeLocalDate(endKey || startKey);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     keys.add(startKey);
     return;
@@ -419,11 +494,11 @@ const addScheduleDateKeys = (keys, source = {}, fallback = {}) => {
 
   const current = start <= end ? start : end;
   const last = start <= end ? end : start;
-  const shouldFilterByWeekday = hasWeekdayFlags(source);
+  const shouldFilterByWeekday = Boolean(getSelectedDayCodes(source)) || hasWeekdayFlags(source);
 
   while (current <= last) {
     if (!shouldFilterByWeekday || isWeekdayEnabled(source, current.getDay())) {
-      keys.add(current.toISOString().slice(0, 10));
+      keys.add(getDateKey(current));
     }
     current.setDate(current.getDate() + 1);
   }
@@ -551,12 +626,130 @@ const normalizeEventAvailability = (payload) => {
   return records;
 };
 
+const unwrapSlotsPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.slots)) return payload.slots;
+  if (Array.isArray(payload?.data?.slots)) return payload.data.slots;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+};
+
+const getSlotAvailabilityForDate = (slot, dateKey) => {
+  const records = Array.isArray(slot?.availability) ? slot.availability : [];
+  return records.find((item) => getDateKey(item?.date || item?.bookingDate || item?.booking_date) === dateKey) || null;
+};
+
+const normalizeExperienceSlots = (slots = [], dateKey = "") => (
+  Array.isArray(slots) ? slots
+    .map((slot, index) => {
+      if (!slot || typeof slot !== "object") return null;
+      const schedule = slot.schedule || {};
+      const capacity = slot.capacity || {};
+      const pricing = slot.pricing || {};
+      const availability = getSlotAvailabilityForDate(slot, dateKey);
+      const id = getSlotId(slot);
+      const slotName = getSlotLabel(slot, index);
+      const isAvailable = availability?.is_available ?? availability?.isAvailable ?? slot.is_available ?? slot.isAvailable;
+      const privateBookingEnabled = availability?.privateBookingEnabled ?? availability?.private_booking_enabled ?? slot.privateBookingEnabled ?? slot.private_booking_enabled ?? false;
+      const hasPrivateBooking = availability?.hasPrivateBooking ?? availability?.has_private_booking ?? slot.hasPrivateBooking ?? slot.has_private_booking ?? false;
+      const explicitPrivateBookingAvailable = availability?.privateBookingAvailable ?? availability?.private_booking_available ?? slot.privateBookingAvailable ?? slot.private_booking_available;
+      const privateBookingAvailable = explicitPrivateBookingAvailable ?? Boolean(privateBookingEnabled && !hasPrivateBooking && isAvailable !== false);
+
+      return {
+        ...slot,
+        id: id ?? slot.id ?? slot.slotId ?? slot.slot_id ?? `slot-${index}`,
+        slotId: id ?? slot.slotId ?? slot.slot_id,
+        slot_id: id ?? slot.slot_id ?? slot.slotId,
+        slotName,
+        slot_name: slot.slot_name ?? slotName,
+        startTime: slot.startTime || slot.start_time || schedule.startTime || schedule.start_time || "",
+        endTime: slot.endTime || slot.end_time || schedule.endTime || schedule.end_time || "",
+        startDate: slot.startDate || slot.start_date || schedule.startDate || schedule.start_date,
+        endDate: slot.endDate || slot.end_date || schedule.endDate || schedule.end_date,
+        selected_days: slot.selected_days || schedule.selected_days,
+        maxSeats: slot.maxSeats ?? slot.max_seats ?? capacity.maxSeats ?? capacity.max_seats,
+        availableSeats: availability?.available_seats ?? availability?.availableSeats ?? slot.availableSeats ?? slot.available_seats,
+        pricePerPerson: pricing.price_per_person ?? pricing.pricePerPerson ?? slot.pricePerPerson ?? slot.price_per_person ?? slot.price,
+        group_booking_pricing: slot.group_booking_pricing || slot.groupBookingPricing || [],
+        availability: Array.isArray(slot.availability) ? slot.availability : [],
+        selectedDateAvailability: availability,
+        is_available: isAvailable,
+        privateBookingEnabled,
+        hasPrivateBooking,
+        privateBookingAvailable,
+      };
+    })
+    .filter(Boolean) : []
+);
+
+const collectPrivateBookedSlotIds = (listing) => {
+  const sources = [
+    listing?.privateBookedSlots,
+    listing?.private_booked_slots,
+    listing?.privateBookedSlotIds,
+    listing?.private_booked_slot_ids,
+    listing?.privateBookingSlots,
+    listing?.private_booking_slots,
+  ].filter(Array.isArray);
+  const ids = new Set();
+
+  sources.flat().forEach((item) => {
+    const id = getSlotId(item);
+    if (id != null) ids.add(String(id));
+  });
+
+  return ids;
+};
+
+const getLatestExperienceSlotEndDate = (listing) => {
+  const slotSources = [
+    listing?.timeSlots,
+    listing?.slots,
+    listing?.availability,
+  ].filter(Array.isArray);
+  const dateKeys = [];
+
+  slotSources.flat().forEach((slot) => {
+    if (!slot || typeof slot !== "object") return;
+    const schedule = slot.schedule || {};
+    const key = getDateKey(
+      slot.endDate ||
+      slot.end_date ||
+      slot.slotEndDate ||
+      slot.availableTo ||
+      schedule.endDate ||
+      schedule.end_date ||
+      slot.startDate ||
+      slot.start_date ||
+      schedule.startDate ||
+      schedule.start_date
+    );
+    if (key) dateKeys.push(key);
+  });
+
+  return dateKeys.sort().pop() || getDateKey(listing?.endDate || listing?.bookingEndDate || listing?.startDate);
+};
+
 function EventInlineCalendar({ selectedDate, onDateSelect, availableDateKeys, tokens, emptyMessage = "No available dates." }) {
   const { A, AL, BG, FG, M, B, S, W } = tokens;
-  const initialDate = selectedDate && typeof selectedDate.toDate === "function"
-    ? selectedDate.toDate()
-    : new Date();
-  const [viewDate, setViewDate] = useState(initialDate);
+  const getInitialViewDate = useCallback(() => {
+    if (selectedDate && typeof selectedDate.toDate === "function") return selectedDate.toDate();
+    if (selectedDate) return makeLocalDate(getDateKey(selectedDate));
+
+    const todayKey = getDateKey(new Date());
+    const availableKeys = [...availableDateKeys].filter((key) => key >= todayKey).sort();
+    const currentMonthPrefix = todayKey.slice(0, 7);
+    const currentMonthKey = availableKeys.find((key) => key.slice(0, 7) === currentMonthPrefix);
+    const firstAvailableKey = currentMonthKey || availableKeys[0];
+    return firstAvailableKey ? makeLocalDate(firstAvailableKey) : new Date();
+  }, [availableDateKeys, selectedDate]);
+  const [viewDate, setViewDate] = useState(() => getInitialViewDate());
+
+  useEffect(() => {
+    setViewDate(getInitialViewDate());
+  }, [getInitialViewDate]);
+
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
@@ -658,6 +851,11 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
   const [guests, setGuests] = useState({ adults: 0, children: 0, infants: 0 });
   const totalGuests = guests.adults + guests.children;
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [dateFilteredSlots, setDateFilteredSlots] = useState([]);
+  const [dateFilteredSlotsLoaded, setDateFilteredSlotsLoaded] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState("");
+  const [privateBooking, setPrivateBooking] = useState(false);
   const isEventBooking = type === "event";
 
   useEffect(() => {
@@ -685,7 +883,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
   const eventFallbackSlots = useMemo(() => (
     listing?.eventSlots || listing?.slots || listing?.timeSlots || []
   ), [listing?.eventSlots, listing?.slots, listing?.timeSlots]);
-  const timeSlots = useMemo(() => (
+  const baseTimeSlots = useMemo(() => (
     Array.isArray(listing?.timeSlots) ? listing.timeSlots : []
   ), [listing?.timeSlots]);
   const ticketApplicableSlots = useMemo(() => {
@@ -797,6 +995,18 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
 
     return keys;
   }, [eventSlots, isEventBooking, isEventSlotAccessible, listing?.bookingEndDate, listing?.bookingStartDate, listing?.endDate, listing?.eventEndDate, listing?.eventStartDate, listing?.startDate]);
+  const listingId = listing?.listingId;
+  const selectedDateKey = useMemo(() => getDateKey(startDate), [startDate]);
+  const slotsLookupEndDate = useMemo(() => getLatestExperienceSlotEndDate(listing), [listing]);
+  const privateBookedSlotIds = useMemo(() => collectPrivateBookedSlotIds(listing), [listing]);
+  const timeSlots = useMemo(() => {
+    const sourceSlots = selectedDateKey && dateFilteredSlotsLoaded ? dateFilteredSlots : baseTimeSlots;
+    return sourceSlots.filter((slot) => {
+      const slotId = getSlotId(slot);
+      const isPrivatelyBooked = slot?.hasPrivateBooking === true || (slotId != null && privateBookedSlotIds.has(String(slotId)));
+      return !isPrivatelyBooked;
+    });
+  }, [baseTimeSlots, dateFilteredSlots, dateFilteredSlotsLoaded, privateBookedSlotIds, selectedDateKey]);
   const experienceAvailableDateKeys = useMemo(() => {
     if (isEventBooking) return new Set();
     const keys = new Set();
@@ -823,8 +1033,6 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
 
     return keys;
   }, [isEventBooking, listing, timeSlots]);
-
-  const listingId = listing?.listingId;
 
   useEffect(() => {
     if (!isEventBooking || selectedTicketTypeId || eventTickets.length === 0) return;
@@ -862,6 +1070,48 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
   }, [eventIdForAvailability, isEventBooking, show]);
 
   useEffect(() => {
+    if (isEventBooking) return;
+
+    setStartTime(null);
+    setPrivateBooking(false);
+    setShowTimePicker(false);
+
+    if (!show || !listingId || !selectedDateKey || !slotsLookupEndDate) {
+      setDateFilteredSlots([]);
+      setDateFilteredSlotsLoaded(false);
+      setSlotsError("");
+      setSlotsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setSlotsLoading(true);
+    setSlotsError("");
+    setDateFilteredSlotsLoaded(false);
+
+    getListingSlots(listingId, selectedDateKey, slotsLookupEndDate)
+      .then((payload) => {
+        if (cancelled || !isMountedRef.current) return;
+        const normalized = normalizeExperienceSlots(unwrapSlotsPayload(payload), selectedDateKey);
+        setDateFilteredSlots(normalized);
+        setDateFilteredSlotsLoaded(true);
+      })
+      .catch((error) => {
+        if (cancelled || !isMountedRef.current) return;
+        setDateFilteredSlots([]);
+        setDateFilteredSlotsLoaded(false);
+        setSlotsError(error?.response?.data?.message || error?.response?.data?.error || error?.message || "Could not load slots for this date.");
+      })
+      .finally(() => {
+        if (!cancelled && isMountedRef.current) setSlotsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEventBooking, listingId, selectedDateKey, show, slotsLookupEndDate]);
+
+  useEffect(() => {
     if (!isEventBooking) return;
     const validSelectedSlots = eventSlots.filter((slot, index) => (
       selectedEventSlotIds.includes(String(slot.eventSlotId ?? slot.id)) && isEventSlotAccessible(slot, index)
@@ -888,7 +1138,21 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
   }, 0);
 
   // Extract proper price depending on whether a time slot is selected
-  const selectedSlotData = timeSlots.find(s => s.slotName === startTime || s.startTime === startTime) || timeSlots[0];
+  const selectedSlotData = timeSlots.find(s => s.slotName === startTime || s.startTime === startTime) || null;
+  const staleSelectedSlotData = (dateFilteredSlotsLoaded ? dateFilteredSlots : baseTimeSlots).find(s => s.slotName === startTime || s.startTime === startTime) || null;
+  const selectedSlotHasPrivateBooking = !isEventBooking && Boolean(startTime) && staleSelectedSlotData?.hasPrivateBooking === true;
+  const dateHasPrivateBookingAvailable = !isEventBooking && Boolean(selectedDateKey) && dateFilteredSlotsLoaded && timeSlots.some((slot) => slot.privateBookingAvailable === true);
+  const selectedSlotPrivateBookingAvailable = !isEventBooking && Boolean(startTime) && selectedSlotData?.privateBookingAvailable === true;
+  const showPrivateBookingToggle = selectedSlotPrivateBookingAvailable;
+  const privateBookingMessage = !isEventBooking && selectedDateKey && dateFilteredSlotsLoaded
+    ? (selectedSlotHasPrivateBooking
+        ? "This slot already has a private booking. Choose another slot."
+        : !dateHasPrivateBookingAvailable
+        ? "No private booking available for this date."
+        : (startTime && !selectedSlotPrivateBookingAvailable
+            ? "This slot does not have private booking. Choose another slot."
+            : ""))
+    : "";
   const selectedSlotSeatLimit = getSlotSeatLimit(selectedSlotData);
   const guestSeatLimit = isEventBooking ? undefined : selectedSlotSeatLimit;
   const eventTicketAvailableLimit = isEventBooking && selectedTicketRemainingTickets !== undefined
@@ -910,15 +1174,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
   const groupPricingRules = !isEventBooking
     ? (selectedSlotData?.group_booking_pricing || selectedSlotData?.groupBookingPricing || [])
     : [];
-  const matchedGroupTier = groupPricingRules.length > 0
-    ? groupPricingRules.find(p =>
-        totalGuests >= (p.group_count_from || p.groupCountFrom || 0) &&
-        totalGuests <= (p.group_count_upto || p.groupCountUpto || Infinity)
-      )
-    : null;
-  const groupOverridePrice = matchedGroupTier
-    ? parseFloat(matchedGroupTier.price_per_person || matchedGroupTier.pricePerPerson || matchedGroupTier.price || 0)
-    : null;
+  const groupOverridePrice = getGroupPricingTierPrice(groupPricingRules, totalGuests);
   // Effective raw base price: group tier wins when matched, else use slot/listing price
   const effectiveRawPrice = (groupOverridePrice != null && groupOverridePrice > 0)
     ? groupOverridePrice
@@ -932,8 +1188,9 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
     : (experienceGuestPricing?.finalUnitPrice ?? parseFloat(effectiveRawPrice || 0));
 
   // Child pricing for experiences
-  const childrenAllowed = !isEventBooking && Boolean(
-    listing?.childrenAllowed ?? listing?.childAllowed ?? listing?.allowChildren ?? true
+  const childrenAllowed = !isEventBooking && asBoolean(
+    listing?.childrenAllowed ?? listing?.childAllowed ?? listing?.allowChildren,
+    true
   );
   const rawChildPrice = !isEventBooking
     ? (listing?.childPricePerChild || listing?.childPrice || listing?.pricing?.childPricePerChild || 0)
@@ -946,6 +1203,8 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
     ? childGuestPricing.finalUnitPrice
     : extractedPrice;
   const hasChildPricing = childrenAllowed && rawChildPrice > 0 && guests.children > 0;
+  const baseAdultPricePerPerson = parseFloat(effectiveRawPrice || 0);
+  const baseChildPricePerChild = hasChildPricing ? parseFloat(rawChildPrice || 0) : baseAdultPricePerPerson;
   
   const data = {
     price: extractedPrice,
@@ -959,6 +1218,9 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
   const baseTotal = isEventBooking
     ? parseFloat(data.price || 0) * totalGuests
     : adultSubtotal + childSubtotal;
+  const rawBaseTotal = !isEventBooking
+    ? (baseAdultPricePerPerson * guests.adults) + (baseChildPricePerChild * guests.children)
+    : baseTotal;
   const finalTotal = baseTotal + addOnsTotal;
   const eventBaseTotal = eventGuestPricing.baseUnitPrice * totalGuests;
   const eventDiscountTotal = eventGuestPricing.discountAmount * totalGuests;
@@ -1009,6 +1271,13 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
     });
   }, [bookingGuestLimit, clampGuestsToSeatLimit]);
 
+  useEffect(() => {
+    if (isEventBooking || childrenAllowed) return;
+    setGuests((current) => (
+      current.children === 0 ? current : { ...current, children: 0 }
+    ));
+  }, [childrenAllowed, isEventBooking]);
+
   const updateGuestsWithinSeatLimit = useCallback((updater) => {
     setGuests((current) => {
       const nextGuests = typeof updater === "function" ? updater(current) : updater;
@@ -1027,6 +1296,14 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
     if (!startDate) return;
     if (!isEventBooking && guestSeatLimit !== undefined && totalGuests > guestSeatLimit) {
       alert(`Only ${guestSeatLimit} seat${guestSeatLimit === 1 ? "" : "s"} available for this slot.`);
+      return;
+    }
+    if (!isEventBooking && privateBooking && !selectedSlotPrivateBookingAvailable) {
+      alert("Private booking is not available for this slot. Choose another slot.");
+      return;
+    }
+    if (!isEventBooking && selectedSlotHasPrivateBooking) {
+      alert("This slot already has a private booking. Choose another slot.");
       return;
     }
     localStorage.removeItem("pendingPayment");
@@ -1276,13 +1553,16 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
       finalTotal: finalTotal,
       pricing: {
         currency: "INR",
-        basePrice: baseTotal,
+        basePrice: rawBaseTotal,
         // Adult/child split for checkout page
         allowChildPricing: hasChildPricing,
         adultsCount: guests.adults,
         childrenCount: guests.children,
         pricePerPerson: parseFloat(extractedPrice || 0),
+        basePricePerPerson: baseAdultPricePerPerson,
+        adultBasePricePerPerson: baseAdultPricePerPerson,
         childPricePerChild: hasChildPricing ? effectiveChildPrice : 0,
+        baseChildPricePerChild,
         discount: (experienceGuestPricing?.discountAmount ?? 0) * guests.adults
           + (childGuestPricing ? (childGuestPricing.discountAmount * guests.children) : 0),
         discountRate: experienceGuestPricing?.discountRate ?? 0,
@@ -1290,7 +1570,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
           + (childGuestPricing ? (childGuestPricing.taxAmount * guests.children) : 0),
         taxRate: experienceGuestPricing?.customerTaxRate ?? 0,
         addonsTotal: addOnsTotal,
-        subtotal: baseTotal + addOnsTotal,
+        subtotal: rawBaseTotal + addOnsTotal,
         total: finalTotal,
         guestCount: totalGuests,
       },
@@ -1301,6 +1581,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
         billableGuestCount: totalGuests
       }
     };
+    if (privateBooking) bookingData.privateBooking = true;
 
     const addons = selectedAddOns.map((item) => {
       const addon = item.addon || item;
@@ -1340,6 +1621,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
       addons,
       guestAnswers: [],
     };
+    if (privateBooking) orderData.privateBooking = true;
 
     try {
       if (isMountedRef.current) setBookingLoading(true);
@@ -1414,8 +1696,27 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
   const IconComp = data.icon;
   const canReserve = isEventBooking
     ? Boolean(ticketSaleWindow.isOpen && startDate && selectedTicket && selectedEventSlots.length > 0 && getSlotId(selectedEventSlots[0]) && totalGuests >= 1 && (selectedTicketMaxPerBooking === undefined || totalGuests <= selectedTicketMaxPerBooking) && (selectedTicketRemainingTickets === undefined || totalGuests <= selectedTicketRemainingTickets) && !selectedTicketSoldOut && !eventAvailabilityLoading && !bookingLoading)
-    : Boolean(startDate && startTime && totalGuests >= 1 && (guestSeatLimit === undefined || totalGuests <= guestSeatLimit) && !bookingLoading);
+    : Boolean(startDate && selectedSlotData && startTime && totalGuests >= 1 && (guestSeatLimit === undefined || totalGuests <= guestSeatLimit) && (!privateBooking || selectedSlotPrivateBookingAvailable) && !selectedSlotHasPrivateBooking && !bookingLoading);
   const triggerDisabled = isEventBooking && !ticketSaleWindow.isOpen;
+
+  const handleOpenBooking = useCallback(() => {
+    if (triggerDisabled) return;
+    setShow(true);
+
+    if (isEventBooking || !listingId || !slotsLookupEndDate) return;
+
+    const todayKey = getDateKey(new Date());
+    getListingSlots(listingId, todayKey, slotsLookupEndDate)
+      .then((payload) => {
+        if (!isMountedRef.current || selectedDateKey !== todayKey) return;
+        const normalized = normalizeExperienceSlots(unwrapSlotsPayload(payload), todayKey);
+        setDateFilteredSlots(normalized);
+        setDateFilteredSlotsLoaded(true);
+      })
+      .catch((error) => {
+        console.warn("Could not preload slots on reserve click:", error?.response?.data || error?.message || error);
+      });
+  }, [isEventBooking, listingId, selectedDateKey, slotsLookupEndDate, triggerDisabled]);
 
   // Check if all experience dates/slots are in the past
   const isExperienceClosed = useMemo(() => {
@@ -1439,10 +1740,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
       `}</style>
       {/* Floating Trigger */}
       <motion.button
-        onClick={() => {
-          if (triggerDisabled) return;
-          setShow(true);
-        }}
+        onClick={handleOpenBooking}
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         whileHover={triggerDisabled ? undefined : { scale: 1.05 }}
@@ -1534,20 +1832,18 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
                   )}
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                     {(() => {
-                      // Price without discount but with tax applied
                       const gp = isEventBooking ? eventGuestPricing : experienceGuestPricing;
                       const hasDiscount = gp && gp.discountRate > 0;
-                      const priceWithoutDiscount = gp
-                        ? gp.baseUnitPrice * (1 + (gp.customerTaxRate / 100))
-                        : null;
+                      const baseDisplayPrice = gp ? gp.baseUnitPrice : Number(data.price || 0);
+                      const discountedDisplayPrice = gp ? gp.priceAfterDiscount : Number(data.price || 0);
                       return (
                         <>
-                          {hasDiscount && priceWithoutDiscount != null && (
+                          {hasDiscount && baseDisplayPrice != null && (
                             <span style={{ fontSize: 20, fontWeight: 600, color: M, textDecoration: "line-through" }}>
-                              ₹{Number(priceWithoutDiscount).toFixed(2)}
+                              ₹{Number(baseDisplayPrice).toFixed(2)}
                             </span>
                           )}
-                          <span style={{ fontSize: 32, fontWeight: 800, color: FG }}>₹{Number(data.price || 0).toFixed(2)}</span>
+                          <span style={{ fontSize: 32, fontWeight: 800, color: FG }}>₹{Number(discountedDisplayPrice || 0).toFixed(2)}</span>
                           <span style={{ fontSize: 14, color: M, fontWeight: 500 }}>per {data.unit}</span>
                         </>
                       );
@@ -1743,6 +2039,58 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
                             />
                           </div>
                         )}
+                        {slotsLoading && (
+                          <div style={{ marginTop: 10, fontSize: 12, color: M, fontWeight: 700 }}>
+                            Checking slot availability...
+                          </div>
+                        )}
+                        {slotsError && (
+                          <div style={{ marginTop: 10, fontSize: 12, color: "#d14343", fontWeight: 700 }}>
+                            {slotsError}
+                          </div>
+                        )}
+                        {!slotsLoading && !slotsError && privateBookingMessage && (
+                          <div style={{ marginTop: 10, fontSize: 12, color: M, fontWeight: 700 }}>
+                            {privateBookingMessage}
+                          </div>
+                        )}
+                        {showPrivateBookingToggle && (
+                          <button
+                            type="button"
+                            onClick={() => setPrivateBooking((value) => !value)}
+                            style={{
+                              marginTop: 12,
+                              width: "100%",
+                              padding: "14px 16px",
+                              borderRadius: 16,
+                              border: `1px solid ${privateBooking ? A : B}`,
+                              background: privateBooking ? AL : BG,
+                              color: privateBooking ? A : FG,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              cursor: "pointer",
+                              fontSize: 13,
+                              fontWeight: 800
+                            }}
+                          >
+                            <span>Private booking</span>
+                            <span
+                              style={{
+                                width: 42,
+                                height: 24,
+                                borderRadius: 999,
+                                background: privateBooking ? A : B,
+                                padding: 3,
+                                display: "flex",
+                                justifyContent: privateBooking ? "flex-end" : "flex-start",
+                                transition: "0.2s"
+                              }}
+                            >
+                              <span style={{ width: 18, height: 18, borderRadius: "50%", background: W, display: "block" }} />
+                            </span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1759,15 +2107,17 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
                           max={adultMax}
                         />
                       </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: BG, border: `1px solid ${B}`, borderRadius: 16 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: FG }}>Children</span>
-                        <Counter
-                          value={guests.children}
-                          setValue={(v) => updateGuestsWithinSeatLimit(p => ({ ...p, children: v }))}
-                          min={0}
-                          max={childMax}
-                        />
-                      </div>
+                      {(isEventBooking || childrenAllowed) && (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: BG, border: `1px solid ${B}`, borderRadius: 16 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: FG }}>Children</span>
+                          <Counter
+                            value={guests.children}
+                            setValue={(v) => updateGuestsWithinSeatLimit(p => ({ ...p, children: v }))}
+                            min={0}
+                            max={childMax}
+                          />
+                        </div>
+                      )}
                     </div>
                     {guestSeatLimit !== undefined && (
                       <div style={{ marginTop: 10, fontSize: 12, color: M, fontWeight: 600 }}>
@@ -1793,6 +2143,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
                 <div style={{ display: "flex", flexDirection: "column" }}>
                   <span style={{ fontSize: 11, color: M, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600 }}>Total amount</span>
                   <span style={{ fontSize: 24, fontWeight: 800, color: FG }}>₹{Number(finalTotal || 0).toFixed(2)}</span>
+                  <span style={{ marginTop: 4, fontSize: 11, color: M, fontWeight: 600 }}>Including all taxes.</span>
                 </div>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
