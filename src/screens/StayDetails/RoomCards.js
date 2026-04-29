@@ -152,6 +152,14 @@ const RoomModal = ({ room, listing, onClose }) => {
   const totalRooms = room.totalRooms || room.totalUnits || null;
   const features = getRoomFeatures(room, listing);
   const scrollRef = useRef(null);
+  const galleryRef = useRef(null);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+
+  // Extra Details
+  const bedInfo = room.bedType || room.bedTypeName || room.beddingType || (room.noOfBeds ? `${room.noOfBeds} Bed(s)` : null);
+  const bedSize = room.bedSize;
+  const inclusions = room.inclusions || room.roomInclusions || room.room_inclusions || [];
+  const cancellationPolicy = room.cancellationPolicy || room.cancellationTerms || listing?.privacyAndPolicy?.cancellationPolicyTemplate || listing?.cancellationPolicy;
 
   useEffect(() => {
     if (listing?.scrollToAmenities && scrollRef.current) {
@@ -169,95 +177,208 @@ const RoomModal = ({ room, listing, onClose }) => {
     if (u && !allImages.includes(u)) allImages.push(u);
   });
 
+  const scrollGallery = (dir) => {
+    if (!galleryRef.current) return;
+    const nextIdx = dir === 'next' 
+      ? (galleryIndex + 1) % allImages.length 
+      : (galleryIndex - 1 + allImages.length) % allImages.length;
+    
+    setGalleryIndex(nextIdx);
+    const itemWidth = galleryRef.current.offsetWidth;
+    galleryRef.current.scrollTo({
+      left: nextIdx * itemWidth,
+      behavior: 'smooth'
+    });
+  };
+
+  useEffect(() => {
+    // Background scroll lock
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalStyle;
+    };
+  }, []);
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 9990, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }} onClick={onClose} />
-      <div style={{ position: "relative", background: "#fff", width: "100%", maxWidth: 900, maxHeight: "90vh", borderRadius: 24, overflow: "hidden", display: "flex", flexDirection: "column", zIndex: 1, boxShadow: "0 24px 48px rgba(0,0,0,0.2)" }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.8)", backdropFilter: "blur(12px)" }} onClick={onClose} />
+      
+      {/* Scrollbar CSS Injection */}
+      <style>{`
+        .modal-body-content::-webkit-scrollbar { display: none; }
+        .modal-body-content { scrollbar-width: none; -ms-overflow-style: none; }
+      `}</style>
+
+      <div style={{ 
+        position: "relative", background: "#fff", width: "100%", maxWidth: 1100, maxHeight: "94vh", 
+        borderRadius: 32, overflow: "hidden", display: "flex", flexDirection: "column", zIndex: 1, 
+        boxShadow: "0 40px 120px rgba(0,0,0,0.5)", border: "1px solid rgba(0,0,0,0.05)" 
+      }}>
         
         {/* Close Button */}
-        <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.9)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        <button onClick={onClose} style={{ 
+          position: "absolute", top: 24, right: 24, width: 44, height: 44, borderRadius: "50%", 
+          background: "rgba(255,255,255,0.9)", border: "none", display: "flex", alignItems: "center", 
+          justifyContent: "center", cursor: "pointer", zIndex: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", 
+          transition: "all 0.3s ease" 
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
 
-        {/* Gallery Grid */}
-        {allImages.length > 0 && (
-          <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: allImages.length > 1 ? "1.5fr 1fr" : "1fr", 
-            gap: 4, 
-            height: 440, 
-            background: "#f3f3f1" 
-          }}>
-            {/* Main Image */}
-            <div style={{ position: "relative", overflow: "hidden" }}>
-              <img 
-                src={allImages[0]} 
-                alt="" 
-                style={{ width: "100%", height: "100%", objectFit: "cover" }} 
-              />
-            </div>
+        {/* Hero Gallery Section */}
+        <div style={{ height: 520, overflow: "hidden", background: "#0F0F0F", position: "relative", display: "flex" }}>
+          {allImages.length > 0 ? (
+            <>
+              <div ref={galleryRef} style={{ display: "flex", width: "100%", height: "100%", overflowX: "hidden", scrollSnapType: "x mandatory", scrollbarWidth: "none", msOverflowStyle: "none" }}>
+                {allImages.map((img, i) => (
+                  <div key={i} style={{ minWidth: "100%", height: "100%", scrollSnapAlign: "start", position: "relative" }}>
+                    <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: galleryIndex === i ? 1 : 0.8, transition: "opacity 0.6s ease" }} />
+                  </div>
+                ))}
+              </div>
+              
+              {/* Navigation Arrows */}
+              {allImages.length > 1 && (
+                <>
+                  <button onClick={() => scrollGallery('prev')} style={{ 
+                    position: "absolute", left: 32, top: "50%", transform: "translateY(-50%)", 
+                    width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.15)", 
+                    backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.2)", 
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", 
+                    color: "#fff", zIndex: 15, transition: "all 0.3s" 
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  </button>
+                  <button onClick={() => scrollGallery('next')} style={{ 
+                    position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", 
+                    width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.15)", 
+                    backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.2)", 
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", 
+                    color: "#fff", zIndex: 15, transition: "all 0.3s" 
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </button>
+                </>
+              )}
 
-            {/* Secondary Images Grid */}
-            {allImages.length > 1 && (
               <div style={{ 
-                display: "grid", 
-                gridTemplateRows: `repeat(${Math.min(allImages.length - 1, 2)}, 1fr)`, 
-                gap: 4 
+                position: "absolute", bottom: 32, right: 32, background: "rgba(0,0,0,0.5)", 
+                backdropFilter: "blur(8px)", color: "#fff", padding: "8px 18px", borderRadius: 100, 
+                fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", zIndex: 15, 
+                border: "1px solid rgba(255,255,255,0.1)" 
               }}>
-                {allImages.slice(1, 3).map((img, i) => (
-                  <div key={i} style={{ position: "relative", overflow: "hidden" }}>
-                    <img 
-                      src={img} 
-                      alt="" 
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }} 
-                    />
-                    {i === 1 && allImages.length > 3 && (
-                      <div style={{ 
-                        position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", 
-                        display: "flex", alignItems: "center", justifyContent: "center", 
-                        color: "#fff", fontSize: 20, fontWeight: 700 
-                      }}>
-                        +{allImages.length - 3}
+                {galleryIndex + 1} <span style={{ opacity: 0.5, margin: "0 4px" }}>/</span> {allImages.length}
+              </div>
+            </>
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f3f1" }}>
+              <Icon name="home" size="64" />
+            </div>
+          )}
+        </div>
+
+        {/* Details Body */}
+        <div className="modal-body-content" style={{ padding: "60px 80px", overflowY: "auto", flex: 1, background: "#fff" }}>
+          
+          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 100 }}>
+            
+            {/* Left Col: Core Details */}
+            <div>
+              <div style={{ marginBottom: 32 }}>
+                <h2 style={{ 
+                  fontSize: 52, fontWeight: 800, marginBottom: 24, 
+                  fontFamily: "var(--font-fraunces, Georgia, serif)", color: "#0F0F0F", 
+                  lineHeight: 1, letterSpacing: "-0.02em" 
+                }}>{name}</h2>
+                
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
+                  {capacity != null && <span style={{ fontSize: 11, fontWeight: 800, padding: "8px 16px", background: "#F3F3F1", borderRadius: 8, color: "#666", textTransform: "uppercase", letterSpacing: "0.1em" }}>Capacity: {capacity} Guests</span>}
+                  {totalRooms != null && <span style={{ fontSize: 11, fontWeight: 800, padding: "8px 16px", background: "#F3F3F1", borderRadius: 8, color: "#666", textTransform: "uppercase", letterSpacing: "0.1em" }}>{totalRooms} Units Available</span>}
+                  {room.extraBedAllowed && <span style={{ fontSize: 11, fontWeight: 800, padding: "8px 16px", background: "#E8F5E9", borderRadius: 8, color: "#2E7D32", textTransform: "uppercase", letterSpacing: "0.1em" }}>Extra Bed Policy Applied</span>}
+                </div>
+
+                <div style={{ borderTop: "1px solid #EEE", paddingTop: 24 }}>
+                  <h3 style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#999", marginBottom: 16 }}>Room Narrative</h3>
+                  <p style={{ fontSize: 18, lineHeight: 1.8, color: "#444", fontWeight: 450 }}>{desc}</p>
+                </div>
+              </div>
+
+              {/* Bed Details Section */}
+              {(bedInfo || bedSize) && (
+                <div style={{ paddingTop: 32, borderTop: "1px solid #EEE" }}>
+                  <h3 style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#999", marginBottom: 20 }}>Accommodation Specs</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }}>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "#999", textTransform: "uppercase", marginBottom: 6 }}>Configuration</p>
+                      <p style={{ fontSize: 18, fontWeight: 700, color: "#0F0F0F" }}>{bedInfo || "Standard Configuration"}</p>
+                    </div>
+                    {bedSize && (
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: "#999", textTransform: "uppercase", marginBottom: 6 }}>Dimension</p>
+                        <p style={{ fontSize: 18, fontWeight: 700, color: "#0F0F0F" }}>{bedSize}</p>
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Details Body */}
-        <div style={{ padding: "40px 48px", overflowY: "auto", flex: 1, background: "#FBFBF9" }}>
-          <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 16, fontFamily: "var(--font-fraunces, Georgia, serif)", color: "#0F0F0F" }}>{name}</h2>
-          
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 32 }}>
-            {capacity != null && <span style={{ fontSize: 13, fontWeight: 600, padding: "8px 16px", background: "#E6E6E3", borderRadius: 8, color: "#0F0F0F" }}>Max {capacity} Guests</span>}
-            {totalRooms != null && <span style={{ fontSize: 13, fontWeight: 600, padding: "8px 16px", background: "#E6E6E3", borderRadius: 8, color: "#0F0F0F" }}>{totalRooms} Units Available</span>}
-            {room.extraBedAllowed && <span style={{ fontSize: 13, fontWeight: 600, padding: "8px 16px", background: "#E6E6E3", borderRadius: 8, color: "#0F0F0F" }}>Extra Bed Allowed</span>}
-          </div>
-
-          <p style={{ fontSize: 16, lineHeight: 1.7, color: "#555", marginBottom: 40 }}>{desc}</p>
-
-          {features.length > 0 && (
-            <div ref={scrollRef} style={{ marginBottom: 40 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, color: "#0F0F0F" }}>Room Amenities</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
-                {features.map((f, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#0097B2" }} />
-                    <span style={{ fontSize: 15, color: "#333", fontWeight: 500 }}>{f}</span>
-                  </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
-          )}
 
+            {/* Right Col: Amenities, Inclusions, Policy */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
+              
+              {/* Amenities */}
+              {features.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#999", marginBottom: 24 }}>Amenities & Features</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 20px" }}>
+                    {features.map((f, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#0097B2", flexShrink: 0 }} />
+                        <span style={{ fontSize: 15, color: "#333", fontWeight: 600 }}>{f}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Inclusions */}
+              {Array.isArray(inclusions) && inclusions.length > 0 && (
+                <div style={{ padding: 28, background: "#FBFBF9", borderRadius: 24, border: "1px solid #EEE" }}>
+                  <h3 style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#999", marginBottom: 20 }}>Stay Inclusions</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {inclusions.map((inc, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 15, color: "#444", fontWeight: 600 }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0097B2" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        {typeof inc === 'string' ? inc : (inc.name || inc.label || inc.title)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Cancellation Policy */}
+              {cancellationPolicy && (
+                <div>
+                  <h3 style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "#999", marginBottom: 16 }}>Cancellation Guidelines</h3>
+                  <div style={{ padding: 24, background: "#FFF5F5", borderRadius: 24, border: "1px solid #FFEBEB" }}>
+                    <p style={{ fontSize: 14, lineHeight: 1.6, color: "#C53030", fontWeight: 500 }}>
+                      {typeof cancellationPolicy === 'string' ? cancellationPolicy : "Standard cancellation terms apply."}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+
+
+
 
 /* ---------- RoomCard (Horizontal Layout) ------------------------------ */
 const RoomCard = ({ room, listing, onRoomSelect, isSelected, roomsCount, onRoomsCountChange }) => {
