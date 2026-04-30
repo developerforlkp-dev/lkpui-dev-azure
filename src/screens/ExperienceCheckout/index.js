@@ -27,7 +27,7 @@ const Checkout = () => {
   const [selectedAddOns, setSelectedAddOns] = useState([]);
   const [bookingData, setBookingData] = useState(location.state?.bookingData || null);
   const [paymentData, setPaymentData] = useState(location.state?.paymentData || null);
-  const [checkingPayment, setCheckingPayment] = useState(true);
+  const [checkingPayment, setCheckingPayment] = useState(location.state?.bookingData ? false : true);
   const [stayImageUrl, setStayImageUrl] = useState(null);
   const [addonDetails, setAddonDetails] = useState([]);
 
@@ -106,7 +106,9 @@ const Checkout = () => {
   // Check payment status when component mounts, and also load server-side pricing
   useEffect(() => {
     const checkPaymentAndLoadPricing = async () => {
-      setCheckingPayment(true);
+      if (!location.state?.bookingData && !bookingData) {
+        setCheckingPayment(true);
+      }
 
       try {
         const pendingOrderId = localStorage.getItem("pendingOrderId");
@@ -190,6 +192,18 @@ const Checkout = () => {
                 pricing: {
                   ...prevPricing,
                   ...serverPricing,
+                  basePrice: (Number(prevPricing.basePrice || 0) > 0)
+                    ? prevPricing.basePrice
+                    : (serverPricing.basePrice || serverPricing.baseAmount || 0),
+                  basePricePerPerson: (Number(prevPricing.basePricePerPerson || prevPricing.adultBasePricePerPerson || 0) > 0)
+                    ? (prevPricing.basePricePerPerson || prevPricing.adultBasePricePerPerson)
+                    : (serverPricing.basePricePerPerson || serverPricing.adultBasePricePerPerson || 0),
+                  adultBasePricePerPerson: (Number(prevPricing.adultBasePricePerPerson || prevPricing.basePricePerPerson || 0) > 0)
+                    ? (prevPricing.adultBasePricePerPerson || prevPricing.basePricePerPerson)
+                    : (serverPricing.adultBasePricePerPerson || serverPricing.basePricePerPerson || 0),
+                  baseChildPricePerChild: (Number(prevPricing.baseChildPricePerChild || 0) > 0)
+                    ? prevPricing.baseChildPricePerChild
+                    : (serverPricing.baseChildPricePerChild || 0),
                   discount: finalDiscount,
                   discountAmount: finalDiscount,
                   // Prioritize local calculation (prevPricing) to ensure consistency with details page
@@ -417,8 +431,8 @@ const Checkout = () => {
         if (pricing.allowChildPricing && pricing.childrenCount > 0) {
           const adults = pricing.adultsCount || 0;
           const children = pricing.childrenCount || 0;
-          const ppp = pricing.pricePerPerson || 0;
-          const cpp = pricing.childPricePerChild || 0;
+          const ppp = pricing.adultBasePricePerPerson || pricing.basePricePerPerson || pricing.pricePerPerson || 0;
+          const cpp = pricing.baseChildPricePerChild || pricing.childPricePerChild || 0;
 
           if (adults > 0) {
              rows.push({ title: `Adults (${fmt(ppp)} × ${adults})`, value: fmt(ppp * adults) });
@@ -428,7 +442,7 @@ const Checkout = () => {
           }
         } else {
           const guests = pricing.guestCount || 1;
-          const ppp = pricing.pricePerPerson;
+          const ppp = pricing.basePricePerPerson || pricing.adultBasePricePerPerson || pricing.pricePerPerson;
           const label = ppp
             ? `Base price (${fmt(ppp)} × ${guests} guest${guests !== 1 ? 's' : ''})`
             : "Base price";
@@ -452,7 +466,7 @@ const Checkout = () => {
       // Tax
       if (tax > 0) {
         const rate = pricing.taxRate ? ` (${pricing.taxRate}%)` : "";
-        rows.push({ title: `Tax${rate}`, value: fmt(tax) });
+        rows.push({ title: `Taxes (paid by you)${rate}`, value: fmt(tax) });
       }
 
       // Discount
@@ -490,7 +504,7 @@ const Checkout = () => {
   // Show loading state while checking payment status
   if (checkingPayment) {
     return (
-      <div className={cn("section-mb80", styles.section)}>
+      <div className={cn("section-mb80", styles.section)} style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div className={cn("container", styles.container)}>
           <div style={{ padding: "3rem", textAlign: "center" }}>
             <p>Checking payment status...</p>

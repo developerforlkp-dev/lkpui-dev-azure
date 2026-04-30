@@ -1294,13 +1294,13 @@ const lowestRoomPrice = useMemo(() => {
         });
       });
     } else {
-      // Fallback to listing-level customer tax or total tax
-      apiTaxPercentage = parseFloat(listing?.pricing?.tax?.customer || listing?.pricing?.tax?.total || 0);
+      // Fallback to listing-level customer tax
+      apiTaxPercentage = parseFloat(listing?.pricing?.tax?.customer || 0);
       if (apiTaxPercentage > 0) {
         const taxAmount = (taxableAmount * apiTaxPercentage) / 100;
         totalTaxAmount = taxAmount;
         receiptData.push({
-          title: `Tax (${apiTaxPercentage}%)`,
+          title: `Taxes (paid by you) (${apiTaxPercentage}%)`,
           content: `${currency} ${taxAmount.toFixed(2)}`,
           kind: "tax",
           showInCheckout: true,
@@ -1775,7 +1775,7 @@ const lowestRoomPrice = useMemo(() => {
           calculatedTaxRate += taxRate;
         });
       } else {
-        const apiTaxPercentage = parseFloat(listing?.pricing?.tax?.customer || listing?.pricing?.tax?.total || 0);
+        const apiTaxPercentage = parseFloat(listing?.pricing?.tax?.customer || 0);
         if (apiTaxPercentage > 0) {
           pricingTaxAmount = (pricingTaxableAmount * apiTaxPercentage) / 100;
           calculatedTaxRate = apiTaxPercentage;
@@ -2283,7 +2283,7 @@ const lowestRoomPrice = useMemo(() => {
         calculatedTaxRate += taxRate;
       });
     } else {
-      const apiTaxPercentage = parseFloat(listing?.pricing?.tax?.customer || listing?.pricing?.tax?.total || 0);
+      const apiTaxPercentage = parseFloat(listing?.pricing?.tax?.customer || 0);
       if (apiTaxPercentage > 0) {
         pricingTaxAmount = (pricingTaxableAmount * apiTaxPercentage) / 100;
         calculatedTaxRate = apiTaxPercentage;

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useLocation, useParams, useHistory } from "react-router-dom";
 import cn from "classnames";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
-import { ArrowDown, Check, Zap, MapPin, ChevronDown, Clock, User, Camera, Coffee, Phone, Info, Plus, Baby, Languages, ShieldCheck } from "lucide-react";
+import { ArrowDown, Check, Zap, MapPin, ChevronDown, Clock, User, Camera, Coffee, Phone, Info, Plus, Minus, Baby, Languages, ShieldCheck, ChevronLeft, Sparkles, Star } from "lucide-react";
 import { useTheme } from "../../components/JUI/Theme";
 import { Cursor, ProgressBar, Rev, Chars, Mq, SHdr, E, Soul } from "../../components/JUI/UI";
 import { BookingSystem } from "../../components/JUI/BookingSystem";
@@ -14,6 +14,9 @@ import {
 } from "../../utils/api";
 import { buildExperienceUrl, extractExperienceIdFromSlugAndId } from "../../utils/experienceUrl";
 import Page from "../../components/Page";
+import ProductNavbar from "../../components/ProductNavbar";
+import PhotoView from "../../components/PhotoView";
+import { disableBodyScroll, enableBodyScroll } from "body-scroll-lock";
 
 const formatImageUrl = (url) => {
   if (!url) return null;
@@ -57,6 +60,197 @@ function ExperienceBg({ progress, src }) {
   );
 }
 
+/* ─── GRID GALLERY MODAL ────────────────────────── */
+const GridGallery = ({ items, onClose, onSelect, title, A }) => {
+  const galleryRef = useRef(null);
+
+  useEffect(() => {
+    const target = galleryRef.current;
+    if (target) disableBodyScroll(target);
+    return () => {
+      if (target) enableBodyScroll(target);
+      else enableBodyScroll(document.body);
+    };
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      ref={galleryRef}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9990,
+        background: '#FFFFFF',
+        overflowY: 'auto',
+        padding: 'clamp(40px, 8vw, 100px) clamp(20px, 5vw, 60px)'
+      }}
+    >
+      <div style={{ maxWidth: 1400, margin: '0 auto', position: 'relative' }}>
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 60 }}
+        >
+          <div>
+            <p style={{ fontSize: 10, letterSpacing: '0.8em', textTransform: 'uppercase', color: A, fontWeight: 800, marginBottom: 20 }}>Visual Anthology</p>
+            <h2 style={{ fontSize: 'clamp(2.5rem, 6vw, 5rem)', fontWeight: 900, color: '#141414', lineHeight: 0.9, letterSpacing: '-0.04em' }} className="font-display">
+              {title}
+            </h2>
+          </div>
+          <motion.button
+            whileHover={{ rotate: 90, scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={onClose}
+            style={{
+              background: 'rgba(0,0,0,0.03)',
+              border: `1px solid rgba(0,0,0,0.08)`,
+              color: '#000',
+              width: 'clamp(56px, 10vw, 80px)',
+              height: 'clamp(56px, 10vw, 80px)',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background 0.3s',
+              flexShrink: 0,
+              marginLeft: 20
+            }}
+          >
+            <Plus size={32} style={{ transform: 'rotate(45deg)' }} color="#000" />
+          </motion.button>
+        </motion.div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))',
+          gap: 'clamp(16px, 3vw, 32px)',
+          gridAutoRows: 'clamp(250px, 40vh, 400px)'
+        }}>
+          {items.map((img, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: (i % 3) * 0.1 }}
+              whileHover={{ y: -10, scale: 1.02 }}
+              onClick={() => onSelect(i)}
+              style={{
+                borderRadius: 24,
+                overflow: 'hidden',
+                cursor: 'pointer',
+                background: '#F4F4F4',
+                border: '1px solid rgba(0,0,0,0.05)',
+                position: 'relative',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.03)'
+              }}
+            >
+              <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+              <motion.div
+                initial={{ opacity: 0 }}
+                whileHover={{ opacity: 1 }}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  padding: '24px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: A, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Plus size={16} color="#FFF" />
+                  </div>
+                  <span style={{ color: '#FFF', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 700 }}>Expand View</span>
+                </div>
+              </motion.div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── MODAL IMAGE POPUP ────────────────────────── */
+const FullScreenImage = ({ src, onClose }) => {
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    const target = modalRef.current;
+    if (target) disableBodyScroll(target);
+    return () => {
+      if (target) enableBodyScroll(target);
+      else enableBodyScroll(document.body);
+    };
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      ref={modalRef}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 10000,
+        background: 'rgba(0,0,0,0.85)',
+        backdropFilter: 'blur(10px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '5vh 5vw'
+      }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 30 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 30 }}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          height: '100%',
+          maxWidth: '1200px',
+          maxHeight: '80vh',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'zoom-out',
+          borderRadius: 32,
+          overflow: 'hidden',
+          boxShadow: '0 50px 100px rgba(0,0,0,0.6)',
+          background: '#000'
+        }}
+      >
+        <img
+          src={src}
+          onClick={onClose}
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'block',
+            objectFit: 'cover' // This fills the container, making it feel much "larger"
+          }}
+          alt="Popup"
+        />
+        {/* Subtle indicator that it's a popup */}
+        <div style={{ position: 'absolute', bottom: 30, right: 30, background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', padding: '8px 16px', borderRadius: 100, pointerEvents: 'none' }}>
+           <p style={{ color: '#FFF', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700 }}>Click to close</p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 
 
 const ExperienceProduct = () => {
@@ -76,14 +270,27 @@ const ExperienceProduct = () => {
   const [selectedAddOns, setSelectedAddOns] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [photoVisible, setPhotoVisible] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [gridVisible, setGridVisible] = useState(false);
 
-  const handleToggleAddon = (addon) => {
+  const handleUpdateAddonQuantity = (addon, delta) => {
     const addonId = addon.addonId || addon.id;
-    setSelectedAddOns((prev) =>
-      prev.some(a => (a.addonId || a.id) === addonId)
-        ? prev.filter(a => (a.addonId || a.id) !== addonId)
-        : [...prev, addon]
-    );
+    setSelectedAddOns((prev) => {
+      const existingIndex = prev.findIndex(a => (a.addonId || a.id) === addonId);
+      if (existingIndex > -1) {
+        const newQuantity = (prev[existingIndex].quantity || 1) + delta;
+        if (newQuantity <= 0) {
+          return prev.filter((_, i) => i !== existingIndex);
+        }
+        const updated = [...prev];
+        updated[existingIndex] = { ...updated[existingIndex], quantity: newQuantity };
+        return updated;
+      } else if (delta > 0) {
+        return [...prev, { ...addon, quantity: 1 }];
+      }
+      return prev;
+    });
   };
 
   useEffect(() => {
@@ -163,9 +370,10 @@ const ExperienceProduct = () => {
     <Page>
       <main style={{ background: BG }}>
         {/* HERO SECTION */}
-        <section ref={heroRef} style={{ position: "relative", minHeight: "110vh", overflow: "hidden", display: "flex", alignItems: "center" }}>
+        <section ref={heroRef} style={{ position: "relative", minHeight: "110vh", overflow: "hidden", display: "flex", alignItems: "center", zIndex: 50 }}>
           <ExperienceBg progress={heroProgress} src={formatImageUrl(listing?.coverPhotoUrl)} />
           <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 60px", position: "relative", zIndex: 10, width: "100%" }}>
+            <ProductNavbar top={100} left={60} />
             <motion.div style={{ opacity: fade, y: textY }}>
               <p style={{ fontSize: 12, letterSpacing: "1em", textTransform: "uppercase", color: A, fontWeight: 800, marginBottom: 40, fontFamily: 'monospace' }}>The Narrative Experience</p>
               <Rev>
@@ -187,10 +395,40 @@ const ExperienceProduct = () => {
               </Rev>
             </motion.div>
           </div>
-          <motion.div style={{ position: "absolute", bottom: 60, left: 60, display: "flex", alignItems: "center", gap: 20, opacity: fade }}>
-            <motion.div animate={{ height: [40, 80, 40] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} style={{ width: 1, background: "#FFFFFF" }} />
-            <span style={{ fontSize: 10, letterSpacing: "0.5em", textTransform: "uppercase", color: "#8C8C88", fontWeight: 600 }}>Scroll to explore</span>
-          </motion.div>
+          {listing?.earlyBirdDiscounts?.some(d => d.isActive) && (
+            <motion.div 
+              style={{ position: "absolute", bottom: 60, right: 60, opacity: fade }}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              <motion.div 
+                animate={{ y: [0, -12, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                style={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: 12, 
+                  background: "rgba(255, 255, 255, 0.03)", 
+                  backdropFilter: "blur(12px)", 
+                  padding: "12px 24px", 
+                  borderRadius: 100, 
+                  border: `1px solid ${A}33`,
+                  boxShadow: `0 10px 30px rgba(0,0,0,0.2), inset 0 0 20px ${A}11`,
+                  whiteSpace: "nowrap"
+                }}
+              >
+                <Sparkles color={A} size={14} />
+                <span style={{ fontSize: 10, letterSpacing: "0.3em", textTransform: "uppercase", color: "#FFFFFF", fontWeight: 800 }}>
+                  {(() => {
+                    const activeDiscounts = listing.earlyBirdDiscounts.filter(d => d.isActive);
+                    const minDays = Math.min(...activeDiscounts.map(d => d.daysInAdvance));
+                    const maxPercentage = Math.max(...activeDiscounts.map(d => d.percentage));
+                    return `Book ${minDays} Days Advance: ${maxPercentage}% Off`;
+                  })()}
+                </span>
+              </motion.div>
+            </motion.div>
+          )}
         </section>
 
 
@@ -198,10 +436,10 @@ const ExperienceProduct = () => {
         {/* GALLERY SECTION */}
         <section style={{ background: W, padding: "80px 0 60px", overflow: "hidden", display: "flex" }}>
           {(() => {
-            const baseItems = galleryItems.length > 0 ? galleryItems : ["/images/content/placeholder.jpg"];
-            let filledItems = [...baseItems];
+            const baseItemsLocal = galleryItems.length > 0 ? galleryItems : ["/images/content/placeholder.jpg"];
+            let filledItems = [...baseItemsLocal];
             while (filledItems.length < 8) {
-              filledItems = [...filledItems, ...baseItems];
+              filledItems = [...filledItems, ...baseItemsLocal];
             }
             const doubledItems = [...filledItems, ...filledItems];
 
@@ -215,7 +453,10 @@ const ExperienceProduct = () => {
                   <motion.div
                     key={i}
                     whileHover={{ scale: 0.98 }}
-                    style={{ width: "clamp(300px, 25vw, 450px)", height: 400, borderRadius: 24, overflow: "hidden", flexShrink: 0, border: `1px solid ${B}` }}
+                    onClick={() => {
+                      setGridVisible(true);
+                    }}
+                    style={{ width: "clamp(300px, 25vw, 450px)", height: 400, borderRadius: 24, overflow: "hidden", flexShrink: 0, border: `1px solid ${B}`, cursor: "pointer" }}
                   >
                     <img src={img} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Gallery" />
                   </motion.div>
@@ -223,6 +464,30 @@ const ExperienceProduct = () => {
               </motion.div>
             );
           })()}
+
+          <AnimatePresence>
+            {gridVisible && !photoVisible && (
+              <GridGallery
+                items={galleryItems.length > 0 ? galleryItems : ["/images/content/placeholder.jpg"]}
+                onClose={() => setGridVisible(false)}
+                onSelect={(index) => {
+                  setPhotoIndex(index);
+                  setPhotoVisible(true);
+                }}
+                title={listing?.title}
+                A={A}
+              />
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {photoVisible && (
+              <FullScreenImage
+                src={galleryItems[photoIndex] || (galleryItems.length > 0 ? galleryItems[0] : "/images/content/placeholder.jpg")}
+                onClose={() => setPhotoVisible(false)}
+              />
+            )}
+          </AnimatePresence>
         </section>
 
 
@@ -245,7 +510,7 @@ const ExperienceProduct = () => {
                 <div style={{ background: S, border: `1px solid ${B}`, padding: 32, height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
                   <Clock size={24} color={A} style={{ marginBottom: 12 }} />
                   <p style={{ fontSize: 20, fontWeight: 700, color: FG, marginBottom: 4 }}>
-                    {listing?.duration ? `${listing.duration} ${listing.durationUnit || "Hrs"}` : "2.5 Hrs"}
+                    {listing?.duration ? `${listing.duration} ${listing.durationUnit || ""}` : "2.5 Hrs"}
                   </p>
                   <p style={{ fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: M }}>Duration</p>
                 </div>
@@ -274,8 +539,10 @@ const ExperienceProduct = () => {
               <Soul y={40} r={5} style={{ gridColumn: "span 1" }}>
                 <div style={{ background: S, border: `1px solid ${B}`, padding: 32, height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
                   <Languages size={24} color={A} style={{ marginBottom: 12 }} />
-                  <p style={{ fontSize: 16, fontWeight: 700, color: FG, marginBottom: 4 }}>
-                    {Array.isArray(listing?.languagesOffered) ? listing.languagesOffered[0] : (listing?.languages || "English")}
+                  <p style={{ fontSize: 14, fontWeight: 700, color: FG, marginBottom: 4 }}>
+                    {Array.isArray(listing?.languagesOffered) && listing.languagesOffered.length > 0
+                      ? listing.languagesOffered.join(", ")
+                      : (listing?.languages || "English")}
                   </p>
                   <p style={{ fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: M }}>Languages</p>
                 </div>
@@ -340,27 +607,56 @@ const ExperienceProduct = () => {
                           <div style={{ flex: 1 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                               <p style={{ fontSize: 18, fontWeight: 700, color: FG, marginBottom: 8 }}>{addon.title}</p>
-                              <button
-                                onClick={() => handleToggleAddon(addon)}
-                                style={{
-                                  background: isSelected ? A : S,
-                                  color: isSelected ? "#FFF" : FG,
-                                  border: `1px solid ${isSelected ? A : B}`,
-                                  borderRadius: 100,
-                                  padding: "6px 16px",
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  cursor: "pointer",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.05em"
-                                }}
-                              >
-                                {isSelected ? "Selected" : "Add"}
-                              </button>
+                              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                {isSelected ? (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 16, background: S, borderRadius: 100, padding: "4px 8px", border: `1px solid ${B}` }}>
+                                    <button
+                                      onClick={() => handleUpdateAddonQuantity(addon, -1)}
+                                      style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, color: A }}
+                                    >
+                                      <Minus size={14} />
+                                    </button>
+                                    <span style={{ fontSize: 13, fontWeight: 700, color: FG, minWidth: 20, textAlign: "center" }}>
+                                      {selectedAddOns.find(a => (a.addonId || a.id) === addonId)?.quantity || 1}
+                                    </span>
+                                    <button
+                                      onClick={() => handleUpdateAddonQuantity(addon, 1)}
+                                      style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, color: A }}
+                                    >
+                                      <Plus size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => handleUpdateAddonQuantity(addon, 1)}
+                                    style={{
+                                      background: S,
+                                      color: FG,
+                                      border: `1px solid ${B}`,
+                                      borderRadius: 100,
+                                      padding: "6px 20px",
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      cursor: "pointer",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em"
+                                    }}
+                                  >
+                                    Add
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <p style={{ fontSize: 14, color: M, lineHeight: 1.6 }}>{addon.briefDescription || addon.description}</p>
                             {addon.price > 0 && (
-                              <p style={{ fontSize: 13, fontWeight: 700, color: A, marginTop: 8 }}>+ ₹{addon.price}</p>
+                              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: A }}>+ ₹{addon.price}</p>
+                                {isSelected && (selectedAddOns.find(a => (a.addonId || a.id) === addonId)?.quantity || 1) > 1 && (
+                                  <p style={{ fontSize: 12, fontWeight: 500, color: M }}>
+                                    × {selectedAddOns.find(a => (a.addonId || a.id) === addonId).quantity} = ₹{(addon.price * selectedAddOns.find(a => (a.addonId || a.id) === addonId).quantity).toFixed(2)}
+                                  </p>
+                                )}
+                              </div>
                             )}
                           </div>
                         </motion.div>
@@ -369,6 +665,22 @@ const ExperienceProduct = () => {
                       <p style={{ color: M, fontSize: 14 }}>No special add-ons included for this experience.</p>
                     )}
                   </div>
+                  {selectedAddOns.length > 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      style={{ marginTop: 40, padding: "24px 32px", background: AL, borderRadius: 24, border: `1px solid ${A}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                    >
+                      <div>
+                        <p style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: A, fontWeight: 700, marginBottom: 4 }}>Add-ons Summary</p>
+                        <p style={{ fontSize: 13, color: M, fontWeight: 500 }}>{selectedAddOns.reduce((sum, a) => sum + (a.quantity || 1), 0)} items selected</p>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <p style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: M, fontWeight: 700, marginBottom: 4 }}>Subtotal</p>
+                        <p style={{ fontSize: 24, fontWeight: 900, color: FG }}>₹{selectedAddOns.reduce((sum, item) => sum + (parseFloat(item.price) * (item.quantity || 1)), 0).toFixed(2)}</p>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
 
                 <div>
@@ -499,12 +811,13 @@ const ExperienceProduct = () => {
         <Mq items={[listing?.category, listing?.subCategory].filter(Boolean).length > 0 ? [listing.category, listing.subCategory].filter(Boolean) : ["Nature", "Adventure"]} size="sm" bg={BG} />
 
         <ExperiencePolicies listing={listing} reviews={reviews} />
+        <QualityIndexSection qualityIndex={listing?.lkpQualityIndex} />
 
         {/* HOST & REVIEWS SECTION */}
         <section style={{ background: BG, padding: "80px 36px" }}>
           <div style={{ maxWidth: 1320, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48 }} className="host-grid">
             <Rev delay={0.1} style={{ height: "100%" }}>
-              <SHdr idx="04" label="The Host" />
+              <SHdr idx="05" label="The Host" />
               <div style={{ padding: 48, background: W, border: `1px solid ${B}`, height: "calc(100% - 56px)", display: "flex", flexDirection: "column" }}>
                 <h3 style={{ fontSize: "2rem", fontWeight: 700, color: FG, marginBottom: 8 }}>{hostData?.firstName} {hostData?.lastName || ""}</h3>
                 <p style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: A, marginBottom: 24 }}>Host</p>
@@ -518,7 +831,7 @@ const ExperienceProduct = () => {
               </div>
             </Rev>
             <Rev delay={0.2} style={{ height: "100%" }}>
-              <SHdr idx="05" label="Testimonials" />
+              <SHdr idx="06" label="Testimonials" />
               <div style={{ padding: 48, background: W, border: `1px solid ${B}`, height: "calc(100% - 56px)", display: "flex", flexDirection: "column" }}>
                 {reviews.length > 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
@@ -552,14 +865,90 @@ const ExperienceProduct = () => {
           .details-grid > div { grid-column: span 1 !important; }
           .prep-grid { grid-template-columns: 1fr !important; gap: 48px !important; }
           .host-grid { grid-template-columns: 1fr !important; }
+          .quality-card { flex-direction: column !important; gap: 40px !important; padding: 40px 20px !important; }
+          .quality-score-unit { transform: scale(0.8) translateZ(80px) !important; }
         }
       `}</style>
     </Page>
   );
 };
 
+function RequirementField({ question, A, FG, M, B, AL, S }) {
+  const [value, setValue] = useState(""); 
+  const fieldType = question.fieldType || question.question?.fieldType;
+  const title = question.title || question.question?.title;
+
+  if (fieldType === 'boolean') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderBottom: `1px dashed ${B}` }}>
+        <span style={{ fontSize: 14, color: FG, fontWeight: 500 }}>{title}</span>
+        <div 
+          onClick={() => setValue(!value)}
+          style={{ 
+            width: 44, height: 24, borderRadius: 12, background: value ? A : B, 
+            position: 'relative', cursor: 'pointer', transition: '0.3s' 
+          }}
+        >
+          <motion.div 
+            animate={{ x: value ? 22 : 2 }}
+            style={{ 
+              width: 20, height: 20, borderRadius: '50%', background: '#FFF', 
+              position: 'absolute', top: 2 
+            }} 
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (fieldType === 'text_single') {
+    return (
+      <div style={{ padding: '20px 0', borderBottom: `1px dashed ${B}` }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 12 }}>{title}</p>
+        <input 
+          type="text" 
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Type your answer..."
+          style={{ 
+            width: '100%', padding: '16px 24px', borderRadius: 16, 
+            border: `1px solid ${B}`, background: AL, color: FG, outline: 'none',
+            fontSize: 14, fontWeight: 500
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (fieldType === 'text_multi') {
+    return (
+      <div style={{ padding: '20px 0', borderBottom: `1px dashed ${B}` }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 12 }}>{title}</p>
+        <textarea 
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Enter details..."
+          rows={3}
+          style={{ 
+            width: '100%', padding: '16px 24px', borderRadius: 16, 
+            border: `1px solid ${B}`, background: AL, color: FG, outline: 'none',
+            resize: 'vertical', fontSize: 14, fontWeight: 500, lineHeight: 1.6
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <li style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+      <div style={{ width: 6, height: 6, background: A, borderRadius: "50%", flexShrink: 0, marginTop: 6 }} />
+      <span style={{ fontSize: 14, color: FG, lineHeight: 1.4, fontWeight: 500 }}>{title}</span>
+    </li>
+  );
+}
+
 function PolicyItem({ req }) {
-  const { tokens: { FG, A, M, AL, B } } = useTheme();
+  const { tokens: { FG, A, M, AL, B, S } } = useTheme();
   const [op, setOp] = useState(false);
 
   const title = req.setting?.title;
@@ -567,7 +956,11 @@ function PolicyItem({ req }) {
   const questions = req.questions || [];
 
   return (
-    <motion.div style={{ borderBottom: `1px solid ${B}` }} whileHover={{ backgroundColor: AL }}>
+    <motion.div 
+      layout
+      style={{ borderBottom: `1px solid ${B}`, overflow: "hidden" }} 
+      whileHover={{ backgroundColor: AL }}
+    >
       <div
         onClick={() => setOp(!op)}
         style={{
@@ -579,37 +972,47 @@ function PolicyItem({ req }) {
           background: "none",
           border: "none",
           cursor: "pointer",
-          textAlign: "left"
+          textAlign: "left",
+          userSelect: "none"
         }}
       >
         <div style={{ flex: 1 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: op ? A : FG, display: "block", marginBottom: 8 }}>{title}</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: op ? A : FG, display: "block", marginBottom: 8, transition: "color 0.3s" }}>{title}</span>
           {description && (
             <p style={{ fontSize: 13, color: M, lineHeight: 1.5, whiteSpace: "pre-line", margin: 0 }}>
               {description}
             </p>
           )}
         </div>
-        <ChevronDown size={18} color={M} style={{ transform: op ? 'rotate(180deg)' : 'none', transition: '0.3s', marginTop: 4, flexShrink: 0 }} />
+        <motion.div
+          animate={{ rotate: op ? 180 : 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          style={{ marginTop: 4, flexShrink: 0, display: "flex", alignItems: "center" }}
+        >
+          <ChevronDown size={18} color={M} />
+        </motion.div>
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {op && questions.length > 0 && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            style={{ padding: "0 16px 24px", overflow: "hidden" }}
+            transition={{ duration: 0.4, ease: [0.04, 0.62, 0.23, 0.98] }}
+            style={{ overflow: "hidden" }}
           >
-            <div style={{ padding: "20px", background: AL, borderRadius: 16, border: `1px solid ${B}` }}>
-              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 12, padding: 0, margin: 0 }}>
-                {questions.map((q, j) => (
-                  <li key={j} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                    <div style={{ width: 6, height: 6, background: A, borderRadius: "50%", flexShrink: 0, marginTop: 6 }} />
-                    <span style={{ fontSize: 14, color: FG, lineHeight: 1.4, fontWeight: 500 }}>{q.question?.title}</span>
-                  </li>
-                ))}
-              </ul>
+            <div style={{ padding: "0 16px 24px" }}>
+              <div style={{ padding: "20px", background: AL, borderRadius: 16, border: `1px solid ${B}` }}>
+                <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 12, padding: 0, margin: 0 }}>
+                  {questions.map((q, j) => (
+                    <li key={j} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                      <div style={{ width: 6, height: 6, background: A, borderRadius: "50%", flexShrink: 0, marginTop: 6 }} />
+                      <span style={{ fontSize: 14, color: FG, lineHeight: 1.4, fontWeight: 500 }}>{q.question?.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </motion.div>
         )}
@@ -623,7 +1026,11 @@ function ReviewsItem({ reviews }) {
   const [op, setOp] = useState(false);
 
   return (
-    <motion.div style={{ borderBottom: `1px solid ${B}` }} whileHover={{ backgroundColor: AL }}>
+    <motion.div 
+      layout
+      style={{ borderBottom: `1px solid ${B}`, overflow: "hidden" }} 
+      whileHover={{ backgroundColor: AL }}
+    >
       <div
         onClick={() => setOp(!op)}
         style={{
@@ -632,40 +1039,50 @@ function ReviewsItem({ reviews }) {
           justifyContent: "space-between",
           padding: "24px 16px",
           cursor: "pointer",
-          textAlign: "left"
+          textAlign: "left",
+          userSelect: "none"
         }}
       >
         <div style={{ flex: 1 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: op ? A : FG, display: "block", marginBottom: 4 }}>Reviews</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: op ? A : FG, display: "block", marginBottom: 4, transition: "color 0.3s" }}>Reviews</span>
           <p style={{ fontSize: 13, color: M, margin: 0 }}>{reviews.length} guests shared their experience</p>
         </div>
-        <ChevronDown size={18} color={M} style={{ transform: op ? 'rotate(180deg)' : 'none', transition: '0.3s' }} />
+        <motion.div
+          animate={{ rotate: op ? 180 : 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          style={{ flexShrink: 0, display: "flex", alignItems: "center" }}
+        >
+          <ChevronDown size={18} color={M} />
+        </motion.div>
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {op && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            style={{ padding: "0 16px 24px", overflow: "hidden" }}
+            transition={{ duration: 0.4, ease: [0.04, 0.62, 0.23, 0.98] }}
+            style={{ overflow: "hidden" }}
           >
-            <div style={{ padding: "24px", background: AL, borderRadius: 16, border: `1px solid ${B}`, display: "flex", flexDirection: "column", gap: 24 }}>
-              {reviews.length > 0 ? (
-                reviews.slice(0, 3).map((rev, i) => (
-                  <div key={i} style={{ borderBottom: i === Math.min(reviews.length, 3) - 1 ? "none" : `1px solid ${B}`, paddingBottom: i === Math.min(reviews.length, 3) - 1 ? 0 : 24 }}>
-                    <p style={{ fontSize: 14, fontStyle: "italic", color: FG, lineHeight: 1.6, marginBottom: 16 }}>&ldquo;{rev.comment || rev.text}&rdquo;</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 32, height: 32, background: A, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: W, fontWeight: 700 }}>
-                        {(rev.customerName || rev.author || "G")[0]}
+            <div style={{ padding: "0 16px 24px" }}>
+              <div style={{ padding: "24px", background: AL, borderRadius: 16, border: `1px solid ${B}`, display: "flex", flexDirection: "column", gap: 24 }}>
+                {reviews.length > 0 ? (
+                  reviews.slice(0, 3).map((rev, i) => (
+                    <div key={i} style={{ borderBottom: i === Math.min(reviews.length, 3) - 1 ? "none" : `1px solid ${B}`, paddingBottom: i === Math.min(reviews.length, 3) - 1 ? 0 : 24 }}>
+                      <p style={{ fontSize: 14, fontStyle: "italic", color: FG, lineHeight: 1.6, marginBottom: 16 }}>&ldquo;{rev.comment || rev.text}&rdquo;</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ width: 32, height: 32, background: A, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: W, fontWeight: 700 }}>
+                          {(rev.customerName || rev.author || "G")[0]}
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: FG }}>{rev.customerName || rev.author}</span>
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: FG }}>{rev.customerName || rev.author}</span>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <p style={{ fontSize: 14, color: M, textAlign: "center", margin: 0 }}>No reviews shared for this experience yet.</p>
-              )}
+                  ))
+                ) : (
+                  <p style={{ fontSize: 14, color: M, textAlign: "center", margin: 0 }}>No reviews shared for this experience yet.</p>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
@@ -674,6 +1091,296 @@ function ReviewsItem({ reviews }) {
   );
 }
 
+function QualityIndexSection({ qualityIndex }) {
+  const { tokens: { A, AL, FG, M, B, W, S, BG } } = useTheme();
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const sectionRef = useRef(null);
+
+  if (!qualityIndex || !qualityIndex.score) return null;
+
+  const score = qualityIndex.score;
+  const displayName = qualityIndex.displayName;
+  const description = qualityIndex.description;
+
+  const handleMouseMove = (e) => {
+    if (!sectionRef.current) return;
+    const rect = sectionRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setMousePos({ x, y });
+  };
+
+  return (
+    <section 
+      ref={sectionRef}
+      onMouseMove={handleMouseMove}
+      style={{ 
+        background: BG, 
+        padding: "100px 20px", 
+        position: "relative", 
+        overflow: "hidden", 
+        borderTop: `1px solid ${B}`, 
+        borderBottom: `1px solid ${B}`,
+        perspective: 2500,
+        isolation: "isolate"
+      }}
+    >
+      {/* ─── OPTIMIZED BACKGROUND ─── */}
+      <div style={{ 
+        position: "absolute", inset: 0, 
+        background: `
+          radial-gradient(circle at 20% 30%, ${A}08 0%, transparent 50%),
+          radial-gradient(circle at 80% 70%, ${A}05 0%, transparent 50%)
+        `,
+        zIndex: 0 
+      }} />
+
+      {/* Simplified Particles (No individual blurs) */}
+      <div style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", opacity: 0.4 }}>
+        {[...Array(12)].map((_, i) => (
+          <motion.div
+            key={i}
+            animate={{ 
+              y: [0, -40, 0],
+              opacity: [0.2, 0.5, 0.2]
+            }}
+            transition={{ duration: 4 + Math.random() * 4, repeat: Infinity, ease: "easeInOut", delay: i * 0.5 }}
+            style={{ 
+              position: "absolute", 
+              top: `${Math.random() * 100}%`, 
+              left: `${Math.random() * 100}%`,
+              width: 3, height: 3,
+              background: A,
+              borderRadius: "50%"
+            }}
+          />
+        ))}
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: "0 auto", position: "relative", zIndex: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          
+          <motion.div
+            style={{
+              rotateX: mousePos.y * -20,
+              rotateY: mousePos.x * 20,
+              transformStyle: "preserve-3d",
+              width: "100%",
+              display: "flex",
+              justifyContent: "center"
+            }}
+          >
+            {/* ─── THE MASTER HOLOGRAPHIC CARD ─── */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, rotateX: 20 }}
+              whileInView={{ opacity: 1, scale: 1, rotateX: 0 }}
+              viewport={{ once: true }}
+              className="quality-card"
+              style={{ 
+                width: "100%", maxWidth: 900, 
+                background: `linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)`, 
+                backdropFilter: "blur(25px) saturate(160%)",
+                borderRadius: 56,
+                padding: "100px 80px",
+                border: `1px solid rgba(255, 255, 255, 0.1)`,
+                boxShadow: `
+                  0 50px 120px rgba(0,0,0,0.2), 
+                  inset 0 0 60px rgba(255,255,255,0.05)
+                `,
+                display: "flex", 
+                flexDirection: "row",
+                alignItems: "center", 
+                gap: 100,
+                position: "relative",
+                transformStyle: "preserve-3d",
+                overflow: "hidden",
+                willChange: "transform",
+                WebkitFontSmoothing: "antialiased",
+                backfaceVisibility: "hidden",
+                transform: "translateZ(1px) rotate(0.0001deg)",
+                imageRendering: "-webkit-optimize-contrast"
+              }}
+            >
+              {/* Glass Sheen Effect */}
+              <motion.div 
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", repeatDelay: 3 }}
+                style={{ 
+                  position: "absolute", inset: 0, 
+                  background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)`,
+                  transform: "skewX(-20deg)",
+                  zIndex: 1,
+                  pointerEvents: "none"
+                }}
+              />
+
+              {/* ─── LEFT: SCORE UNIT ─── */}
+              <div className="quality-score-unit" style={{ position: "relative", transform: "translateZ(120px) rotate(0.0001deg)", flexShrink: 0, willChange: "transform", backfaceVisibility: "hidden" }}>
+                {/* Holographic Rings */}
+                {[...Array(3)].map((_, i) => (
+                  <motion.div 
+                    key={i}
+                    animate={{ rotate: i % 2 === 0 ? 360 : -360, scale: [1, 1.05, 1] }}
+                    transition={{ 
+                      rotate: { duration: 20 + i * 10, repeat: Infinity, ease: "linear" },
+                      scale: { duration: 4, repeat: Infinity, ease: "easeInOut" }
+                    }}
+                    style={{ 
+                      position: "absolute", 
+                      inset: -(30 + i * 25), 
+                      border: `1px solid ${A}${i === 0 ? "44" : "11"}`, 
+                      borderRadius: "50%",
+                      opacity: 0.6 - (i * 0.2),
+                      willChange: "transform"
+                    }}
+                  />
+                ))}
+                
+                <div style={{ position: "relative", width: 260, height: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="260" height="260" viewBox="0 0 260 260" style={{ transform: "rotate(-90deg)", filter: `drop-shadow(0 0 20px ${A}33)` }}>
+                    <circle cx="130" cy="130" r="120" fill="none" stroke={`${A}11`} strokeWidth="2" />
+                    <motion.circle 
+                      cx="130" cy="130" r="120" fill="none" stroke={A} strokeWidth="8" strokeLinecap="round"
+                      initial={{ strokeDasharray: "0 754" }}
+                      whileInView={{ strokeDasharray: `${(score / 10) * 754} 754` }}
+                      transition={{ duration: 2.5, ease: [0.22, 1, 0.36, 1], delay: 0.5 }}
+                    />
+                  </svg>
+                  
+                  <div style={{ position: "absolute", textAlign: "center" }}>
+                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center" }}>
+                      <motion.span 
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 1, delay: 0.8 }}
+                        style={{ 
+                          fontSize: 110, fontWeight: 900, color: FG, lineHeight: 1,
+                          fontFamily: "var(--font-display)", letterSpacing: "-0.05em",
+                          background: `linear-gradient(to bottom, ${FG}, ${M})`,
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent"
+                        }}
+                      >
+                        {score}
+                      </motion.span>
+                      <span style={{ fontSize: 24, fontWeight: 800, color: A, marginLeft: 4 }}>.0</span>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: A, textTransform: "uppercase", letterSpacing: "0.3em", opacity: 0.8 }}>Benchmark Score</span>
+                  </div>
+                </div>
+
+                {/* Technical Micro-Metadata */}
+                <div style={{ position: "absolute", bottom: -40, left: "50%", transform: "translateX(-50%)", width: "max-content", textAlign: "center" }}>
+                   <p style={{ fontSize: 9, fontFamily: "monospace", color: M, opacity: 0.6, letterSpacing: "0.1em" }}>
+                     CALC_ID: 9x7742 // VAR_SIG: {Math.random().toString(16).slice(2, 8).toUpperCase()}
+                   </p>
+                </div>
+              </div>
+
+              {/* ─── RIGHT: CONTENT ─── */}
+              <div style={{ flex: 1, transform: "translateZ(60px)" }}>
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}
+                >
+                  <div style={{ width: 60, height: 2, background: `linear-gradient(90deg, ${A}, transparent)` }} />
+                  <span style={{ fontSize: 11, letterSpacing: "0.5em", textTransform: "uppercase", color: A, fontWeight: 900 }}>Quality Narrative</span>
+                </motion.div>
+                
+                <h3 className="font-display" style={{ fontSize: 56, fontWeight: 900, color: FG, marginBottom: 24, lineHeight: 1, letterSpacing: "-0.03em" }}>
+                  {displayName}
+                </h3>
+                
+                <div style={{ position: "relative", padding: "0 0 0 32px", borderLeft: `3px solid ${A}` }}>
+                  <p style={{ fontSize: 20, color: M, fontWeight: 400, lineHeight: 1.6, margin: 0, fontStyle: "italic", opacity: 0.95 }}>
+                    &ldquo;{description}&rdquo;
+                  </p>
+                </div>
+
+                {/* Amazing Elements: Enhanced Badges */}
+                <div style={{ display: "flex", gap: 32, marginTop: 48 }}>
+                  {[
+                    { icon: ShieldCheck, label: "LKP Verified" },
+                    { icon: Zap, label: "High Fidelity" },
+                    { icon: Sparkles, label: "Curated" }
+                  ].map((item, i) => (
+                    <motion.div 
+                      key={i}
+                      whileHover={{ y: -5, color: A }}
+                      initial={{ opacity: 0, y: 10 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 1.2 + (i * 0.15) }}
+                      style={{ display: "flex", flexDirection: "column", gap: 8, cursor: "pointer" }}
+                    >
+                      <item.icon size={20} color={A} />
+                      <span style={{ fontSize: 10, fontWeight: 800, color: FG, textTransform: "uppercase", letterSpacing: "0.15em" }}>{item.label}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ─── FLOATING OBJECTS ─── */}
+              
+              {/* Premium Quality Seal */}
+              <motion.div 
+                animate={{ 
+                  y: [-20, 20, -20],
+                  rotate: [0, 5, 0]
+                }}
+                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                style={{ 
+                  position: "absolute", top: 40, right: 40, transform: "translateZ(150px)",
+                  background: `rgba(255,255,255,0.05)`, border: `1px solid rgba(255,255,255,0.1)`, 
+                  padding: "16px 24px", borderRadius: 24,
+                  backdropFilter: "blur(20px)", boxShadow: `0 30px 60px rgba(0,0,0,0.2)`,
+                  willChange: "transform"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ADE80", boxShadow: "0 0 10px #4ADE80" }} />
+                  <span style={{ fontSize: 12, fontWeight: 900, color: FG, letterSpacing: "0.1em" }}>OPTIMAL STATUS</span>
+                </div>
+              </motion.div>
+              
+              {/* Glass Orb */}
+              <motion.div 
+                animate={{ 
+                  y: [20, -20, 20],
+                  x: [0, 15, 0],
+                  scale: [1, 1.1, 1]
+                }}
+                transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                style={{ 
+                  position: "absolute", bottom: 40, left: -40, transform: "translateZ(180px)",
+                  width: 80, height: 80, borderRadius: "50%", 
+                  background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, ${A}44 100%)`,
+                  backdropFilter: "blur(5px)",
+                  border: `1px solid rgba(255,255,255,0.2)`,
+                  boxShadow: `0 20px 40px rgba(0,0,0,0.3)`,
+                  willChange: "transform"
+                }}
+              />
+            </motion.div>
+          </motion.div>
+
+        </div>
+      </div>
+
+      {/* Background Decorative Grid */}
+      <div style={{ 
+        position: "absolute", inset: 0, 
+        backgroundImage: `radial-gradient(${A}15 1px, transparent 1px)`, 
+        backgroundSize: "60px 60px",
+        opacity: 0.3,
+        maskImage: `radial-gradient(circle at center, black, transparent 80%)`,
+        zIndex: 0
+      }} />
+    </section>
+  );
+}
+
+
 function ExperiencePolicies({ listing, reviews }) {
   const { tokens: { FG, W, B, A, M } } = useTheme();
 
@@ -681,7 +1388,7 @@ function ExperiencePolicies({ listing, reviews }) {
     <section style={{ background: W, padding: "80px 36px" }}>
       <div style={{ maxWidth: 1320, margin: "0 auto" }}>
         <SHdr idx="03" label="Rules & Policies" />
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.5fr", gap: 80 }} className="pol-grid">
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.5fr", gap: 80, alignItems: "start" }} className="pol-grid">
           <Rev delay={0.1}>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <Chars

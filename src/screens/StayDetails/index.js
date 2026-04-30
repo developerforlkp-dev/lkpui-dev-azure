@@ -3,12 +3,14 @@ import { useLocation, useHistory, Link } from "react-router-dom";
 import { motion, AnimatePresence, useScroll, useTransform, useMotionValue, useSpring, useInView, animate, useAnimationFrame } from "framer-motion";
 import {
   Wifi, Waves, Sparkles, Dumbbell, Umbrella, Plane, GlassWater, Utensils,
-  Phone, Clock, FileText, MapPin, ChevronDown, CheckCircle, Info, Building, 
+  Phone, Clock, FileText, MapPin, ChevronDown, CheckCircle, Info, Building,
   ArrowRight, ShieldCheck, Mail, Globe, Map, Navigation, ArrowDown, Car, AirVent,
   Users, DoorOpen, Bed, Bath, Maximize, Calendar, Star, Share2, Heart, ArrowLeft
 } from "lucide-react";
 import moment from "moment";
 import cn from "classnames";
+import Page from "../../components/Page";
+import ProductNavbar from "../../components/ProductNavbar";
 import Loader from "../../components/Loader";
 import Icon from "../../components/Icon";
 import RoomCards from "./RoomCards";
@@ -256,7 +258,7 @@ function StayHeroCarousel({ stay, galleryItems = [] }) {
   const { tokens: { A, BG, FG, M, S, B, W } } = useTheme();
   const title = stay?.propertyName || stay?.title || "STAY EXPERIENCE";
   const items = galleryItems.slice(0, 5);
-  
+
   // Infinite Loop Logic for images only
   const x = useMotionValue(0);
   const speed = 0.03;
@@ -267,11 +269,11 @@ function StayHeroCarousel({ stay, galleryItems = [] }) {
   });
 
   const BentoGridImages = () => (
-    <div style={{ 
-      display: "grid", 
-      gridTemplateColumns: "minmax(500px, 1.2fr) minmax(300px, 0.8fr) minmax(400px, 1fr)", 
-      gridTemplateRows: "1fr 1fr", 
-      gap: 24, 
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "minmax(500px, 1.2fr) minmax(300px, 0.8fr) minmax(400px, 1fr)",
+      gridTemplateRows: "1fr 1fr",
+      gap: 24,
       height: "100%",
       width: "100vw",
       padding: "0 12px",
@@ -299,7 +301,7 @@ function StayHeroCarousel({ stay, galleryItems = [] }) {
   });
 
   return (
-    <section style={{ position: "relative", height: "85vh", background: BG, overflow: "hidden", padding: "30px 0" }}>
+    <section style={{ position: "relative", height: "85vh", background: BG, overflow: "hidden", padding: "0", zIndex: 50 }}>
       {/* Looping Image Track */}
       <motion.div style={{ x: wrappedX, display: "flex", height: "100%", width: "fit-content" }}>
         <BentoGridImages />
@@ -311,29 +313,29 @@ function StayHeroCarousel({ stay, galleryItems = [] }) {
       <div style={{ position: "absolute", bottom: 80, left: 80, zIndex: 40, pointerEvents: "none" }}>
         <Rev delay={0.2}>
           <div style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(20px)", padding: "40px 60px", borderRadius: 32, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 50px rgba(0,0,0,0.3)" }}>
-             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-               <div style={{ width: 40, height: 1, background: A }} />
-               <span style={{ fontSize: 10, letterSpacing: "0.4em", textTransform: "uppercase", color: A, fontWeight: 800 }}>{toDisplayString(stay?.propertyType) || "EXCEPTIONAL"}</span>
-             </div>
-             <h1 className="font-display" style={{ fontSize: "clamp(2rem, 5vw, 5rem)", fontWeight: 800, color: "#FFF", lineHeight: 0.9, letterSpacing: "-0.03em" }}>{title.toUpperCase()}</h1>
-             <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, color: "#FFF" }}>
-               <MapPin size={18} />
-               <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "0.1em" }}>{stay?.city}, {stay?.state}</span>
-             </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 1, background: A }} />
+              <span style={{ fontSize: 10, letterSpacing: "0.4em", textTransform: "uppercase", color: A, fontWeight: 800 }}>{toDisplayString(stay?.propertyType) || "EXCEPTIONAL"}</span>
+            </div>
+            <h1 className="font-display" style={{ fontSize: "clamp(2rem, 5vw, 5rem)", fontWeight: 800, color: "#FFF", lineHeight: 0.9, letterSpacing: "-0.03em" }}>{title.toUpperCase()}</h1>
+            <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, color: "#FFF" }}>
+              <MapPin size={18} />
+              <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "0.1em" }}>{stay?.city}, {stay?.state}</span>
+            </div>
           </div>
         </Rev>
       </div>
 
       {/* Static Overlays: Luxury Badge */}
       <div style={{ position: "absolute", top: 60, left: 60, zIndex: 30, pointerEvents: "none" }}>
-         <motion.div animate={{ rotate: 360 }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} style={{ width: 90, height: 90 }}>
-           <svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%" }}>
-             <path id="badgePath" d="M 50, 50 m -40, 0 a 40,40 0 1,1 80,0 a 40,40 0 1,1 -80,0" fill="transparent" />
-             <text style={{ fontSize: 7.5, fontWeight: 800, fill: A, textTransform: "uppercase", letterSpacing: "2.5px" }}>
-               <textPath xlinkHref="#badgePath">Luxury Retreat — Premium Stay —</textPath>
-             </text>
-           </svg>
-         </motion.div>
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} style={{ width: 90, height: 90 }}>
+          <svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%" }}>
+            <path id="badgePath" d="M 50, 50 m -40, 0 a 40,40 0 1,1 80,0 a 40,40 0 1,1 -80,0" fill="transparent" />
+            <text style={{ fontSize: 7.5, fontWeight: 800, fill: A, textTransform: "uppercase", letterSpacing: "2.5px" }}>
+              <textPath xlinkHref="#badgePath">Luxury Retreat — Premium Stay —</textPath>
+            </text>
+          </svg>
+        </motion.div>
       </div>
     </section>
   );
@@ -458,8 +460,84 @@ function ImgParallax({ src, alt }) {
   );
 }
 
-function PolicyItem({ rule, A, FG, M, B }) {
+function RequirementField({ question, A, FG, M, B, S }) {
+  const [value, setValue] = useState(""); 
+  const fieldType = question.fieldType || question.question?.fieldType;
+  const title = question.title || question.question?.title;
+
+  if (fieldType === 'boolean') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px dashed ${B}` }}>
+        <span style={{ fontSize: 14, color: FG, fontWeight: 500 }}>{title}</span>
+        <div 
+          onClick={() => setValue(!value)}
+          style={{ 
+            width: 44, height: 24, borderRadius: 12, background: value ? A : B, 
+            position: 'relative', cursor: 'pointer', transition: '0.3s' 
+          }}
+        >
+          <motion.div 
+            animate={{ x: value ? 22 : 2 }}
+            style={{ 
+              width: 20, height: 20, borderRadius: '50%', background: '#FFF', 
+              position: 'absolute', top: 2 
+            }} 
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (fieldType === 'text_single') {
+    return (
+      <div style={{ padding: '16px 0', borderBottom: `1px dashed ${B}` }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{title}</p>
+        <input 
+          type="text" 
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Type your answer here..."
+          style={{ 
+            width: '100%', padding: '14px 20px', borderRadius: 12, 
+            border: `1px solid ${B}`, background: S, color: FG, outline: 'none',
+            fontSize: 14, fontWeight: 500
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (fieldType === 'text_multi') {
+    return (
+      <div style={{ padding: '16px 0', borderBottom: `1px dashed ${B}` }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{title}</p>
+        <textarea 
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Enter detailed information..."
+          rows={3}
+          style={{ 
+            width: '100%', padding: '14px 20px', borderRadius: 12, 
+            border: `1px solid ${B}`, background: S, color: FG, outline: 'none',
+            resize: 'vertical', fontSize: 14, fontWeight: 500, lineHeight: 1.6
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: '12px 0' }}>
+      <div style={{ width: 6, height: 6, background: A, borderRadius: "50%", flexShrink: 0, marginTop: 6 }} />
+      <span style={{ fontSize: 14, color: FG, lineHeight: 1.4, fontWeight: 500 }}>{title}</span>
+    </div>
+  );
+}
+
+function PolicyItem({ rule, A, FG, M, B, S }) {
   const [op, setOp] = useState(false);
+  const hasQuestions = Array.isArray(rule.questions) && rule.questions.length > 0;
+
   return (
     <motion.div key={rule.id} style={{ borderBottom: `1px solid ${B}` }}>
       <button onClick={() => setOp(!op)}
@@ -475,7 +553,17 @@ function PolicyItem({ rule, A, FG, M, B }) {
       <AnimatePresence>
         {op && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.4, ease: E }} style={{ overflow: "hidden" }}>
-            <p style={{ padding: "0 20px 40px 64px", fontSize: 14, color: M, lineHeight: 1.85, maxWidth: 640, whiteSpace: "pre-wrap" }}>{rule.body}</p>
+            <div style={{ padding: "0 20px 40px 64px", maxWidth: 640 }}>
+              {hasQuestions ? (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {rule.questions.map((q, i) => (
+                    <RequirementField key={i} question={q} A={A} FG={FG} M={M} B={B} S={S} />
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: 14, color: M, lineHeight: 1.85, whiteSpace: "pre-wrap" }}>{rule.body}</p>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -526,14 +614,14 @@ function StayPoliciesAndContact({ stay, hostData, hostAvatar }) {
           propItems.push({ id: `prop-${i}`, title: line.substring(0, colonIdx).trim(), body: line.substring(colonIdx + 1).trim() });
         } else {
           if (line.toLowerCase() !== "check-in and check-out" && line.toLowerCase() !== "property rules") {
-             propItems.push({ id: `prop-${i}`, title: line, body: line });
+            propItems.push({ id: `prop-${i}`, title: line, body: line });
           }
         }
       });
     } else {
       const rawPropRules = stay?.propertyRulesDefaultTemplate || stay?.propertyRules || stay?.propertyRule || findArrayWithKey(stay, 'propertyRule');
       if (Array.isArray(rawPropRules) && rawPropRules.length > 0) {
-        rawPropRules.forEach((r, i) => propItems.push({ id: `prop-${i}`, title: `Rule ${i+1}`, body: extractText(r) }));
+        rawPropRules.forEach((r, i) => propItems.push({ id: `prop-${i}`, title: `Rule ${i + 1}`, body: extractText(r) }));
       } else if (stay?.houseRules) {
         propItems.push({ id: `prop-0`, title: "General Rules", body: stay.houseRules });
       } else if (stay?.checkInTime || stay?.checkOutTime) {
@@ -550,12 +638,12 @@ function StayPoliciesAndContact({ stay, hostData, hostAvatar }) {
     const guestItems = [];
     if (Array.isArray(stay?.guestRequirements) && stay.guestRequirements.length > 0) {
       stay.guestRequirements.forEach((req, i) => {
-        const title = req.setting?.title || req.description || `Requirement ${i+1}`;
+        const title = req.setting?.title || req.description || `Requirement ${i + 1}`;
         let body = "";
         if (Array.isArray(req.questions)) {
           body = req.questions.map(q => `• ${q.title || q.question?.title}`).join("\n");
         }
-        guestItems.push({ id: `guest-${i}`, title, body: body || title });
+        guestItems.push({ id: `guest-${i}`, title, body: body || title, questions: req.questions });
       });
     }
     if (guestItems.length > 0) {
@@ -569,7 +657,7 @@ function StayPoliciesAndContact({ stay, hostData, hostAvatar }) {
     } else {
       const rawCancelRules = stay?.cancellationPolicyRules || stay?.cancellationPolicyRule || stay?.cancellationRules || findArrayWithKey(stay, 'policyRule');
       if (Array.isArray(rawCancelRules) && rawCancelRules.length > 0) {
-        rawCancelRules.forEach((r, i) => cancelItems.push({ id: `cancel-${i}`, title: `Rule ${i+1}`, body: extractText(r) }));
+        rawCancelRules.forEach((r, i) => cancelItems.push({ id: `cancel-${i}`, title: `Rule ${i + 1}`, body: extractText(r) }));
       } else if (stay?.generatedPolicySummary || stay?.policySummary) {
         cancelItems.push({ id: 'cancel-1', title: "Summary", body: stay?.generatedPolicySummary || stay?.policySummary });
       } else if (stay?.cancellationPolicy || stay?.cancellationPolicyText) {
@@ -616,11 +704,11 @@ function StayPoliciesAndContact({ stay, hostData, hostAvatar }) {
   return (
     <section style={{ background: BG, padding: "140px 36px" }}>
       <div style={{ maxWidth: 1320, margin: "0 auto" }}>
-        
+
         <SHdr idx="05" label="Guidelines & Contact" />
-        
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 100, alignItems: "start", marginTop: 40 }}>
-          
+
           {/* Left Column: Host Details */}
           <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
             <div>
@@ -641,22 +729,22 @@ function StayPoliciesAndContact({ stay, hostData, hostAvatar }) {
                     <p style={{ fontSize: 14, color: M }}>Property Representative</p>
                   </div>
                 </div>
-                
+
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: "32px", background: W, border: `1px solid ${B}`, borderRadius: 2 }}>
-                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                     <span style={{ fontSize: 10, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.1em" }}>Phone</span>
-                     <a href={`tel:${primaryPhoneNum}`} style={{ fontSize: 16, fontWeight: 600, color: FG, textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
-                       <Phone size={16} color={A} />
-                       {primaryPhoneNum}
-                     </a>
-                   </div>
-                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                     <span style={{ fontSize: 10, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.1em" }}>Email</span>
-                     <a href={`mailto:${primaryEmailAddress}`} style={{ fontSize: 16, fontWeight: 600, color: FG, textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
-                       <Mail size={16} color={A} />
-                       {primaryEmailAddress}
-                     </a>
-                   </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.1em" }}>Phone</span>
+                    <a href={`tel:${primaryPhoneNum}`} style={{ fontSize: 16, fontWeight: 600, color: FG, textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
+                      <Phone size={16} color={A} />
+                      {primaryPhoneNum}
+                    </a>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.1em" }}>Email</span>
+                    <a href={`mailto:${primaryEmailAddress}`} style={{ fontSize: 16, fontWeight: 600, color: FG, textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
+                      <Mail size={16} color={A} />
+                      {primaryEmailAddress}
+                    </a>
+                  </div>
                 </div>
               </Rev>
             </div>
@@ -682,7 +770,7 @@ function StayPoliciesAndContact({ stay, hostData, hostAvatar }) {
                   <h3 style={{ fontSize: 20, fontWeight: 700, color: FG, marginBottom: 24, letterSpacing: "-0.01em" }}>{category.title}</h3>
                   <div style={{ borderTop: `1px solid ${B}` }}>
                     {category.items.map((rule) => (
-                      <PolicyItem key={rule.id} rule={rule} A={A} FG={FG} M={M} B={B} />
+                      <PolicyItem key={rule.id} rule={rule} A={A} FG={FG} M={M} B={B} S={S} />
                     ))}
                   </div>
                 </div>
@@ -708,14 +796,12 @@ const StayDetails = () => {
   const [hostData, setHostData] = useState(null);
   const [galleryItems, setGalleryItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Booking State
   const [checkInDate, setCheckInDate] = useState(null);
   const [checkOutDate, setCheckOutDate] = useState(null);
   const [guests, setGuests] = useState({ adults: 1, children: 0 });
-  const [externalRoomId, setExternalRoomId] = useState(null);
-  const [externalMealPlan, setExternalMealPlan] = useState(null);
-  const [externalRoomsCount, setExternalRoomsCount] = useState(1);
+  const [selectedRooms, setSelectedRooms] = useState([]); // Array of {roomId, mealPlan, count}
   const [bookingLoading, setBookingLoading] = useState(false);
 
   const formatImageUrl = (url) => {
@@ -728,11 +814,20 @@ const StayDetails = () => {
   };
 
   const handleRoomSelect = useCallback((roomId, mealPlan) => {
-    const newRoomId = String(roomId);
-    if (newRoomId !== externalRoomId) setExternalRoomsCount(1);
-    setExternalRoomId(newRoomId);
-    setExternalMealPlan(mealPlan || null);
-  }, [externalRoomId]);
+    const rid = String(roomId);
+    setSelectedRooms(prev => {
+      const exists = prev.find(r => r.roomId === rid);
+      if (exists) return prev.filter(r => r.roomId !== rid);
+      return [...prev, { roomId: rid, mealPlan: mealPlan || "EP", count: 1 }];
+    });
+  }, []);
+
+  const handleRoomCountChange = useCallback((roomId, count) => {
+    const rid = String(roomId);
+    setSelectedRooms(prev => prev.map(r => 
+      r.roomId === rid ? { ...r, count: Math.max(1, count) } : r
+    ));
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -794,6 +889,8 @@ const StayDetails = () => {
     <div className="stay-details-premium" style={{ minHeight: "100vh", background: BG, color: FG }}>
       <ScopedStyles />
 
+      <ProductNavbar top={100} left={60} />
+
       <StayHeroCarousel stay={stay} galleryItems={galleryItems} />
 
       <StayAmenities stay={stay} />
@@ -807,9 +904,8 @@ const StayDetails = () => {
           <RoomCards
             listing={stay}
             onRoomSelect={handleRoomSelect}
-            selectedRoomId={externalRoomId}
-            roomsCount={externalRoomsCount}
-            onRoomsCountChange={setExternalRoomsCount}
+            selectedRooms={selectedRooms}
+            onRoomsCountChange={handleRoomCountChange}
             noContainer
           />
         </div>
@@ -827,7 +923,7 @@ const StayDetails = () => {
 
       <StayPoliciesAndContact stay={stay} hostData={hostData} hostAvatar={hostAvatar} />
 
-      <StayBookingSystem 
+      <StayBookingSystem
         stay={stay}
         checkInDate={checkInDate}
         setCheckInDate={setCheckInDate}
@@ -835,9 +931,8 @@ const StayDetails = () => {
         setCheckOutDate={setCheckOutDate}
         guests={guests}
         setGuests={setGuests}
-        selectedRoomId={externalRoomId}
-        selectedMealPlan={externalMealPlan}
-        roomsCount={externalRoomsCount}
+        selectedRooms={selectedRooms}
+        onRoomsCountChange={handleRoomCountChange}
       />
 
 
@@ -876,7 +971,7 @@ function StayLocation({ stay }) {
     <section style={{ background: W, padding: "120px 36px", borderTop: `1px solid ${B}` }}>
       <div style={{ maxWidth: 1320, margin: "0 auto" }}>
         <SHdr idx="02" label="PREPARATION" />
-        
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 100, marginTop: 40 }}>
           {/* Left Column: Location Card */}
           <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>

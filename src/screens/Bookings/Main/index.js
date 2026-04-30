@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useHistory } from "react-router-dom";
+import { ChevronLeft } from "lucide-react";
+import ProductNavbar from "../../../components/ProductNavbar";
 import cn from "classnames";
 import styles from "./Main.module.sass";
 import Icon from "../../../components/Icon";
@@ -178,9 +180,9 @@ const transformBookingData = (apiBooking, listingData = null, eventData = null, 
 
   let status = statusMap[apiBooking.orderStatus] || "Upcoming";
 
-  // If the backend says Upcoming (PENDING/CONFIRMED) but the booking date has
-  // already passed, show the booking in Completed instead.
-  if (status === "Upcoming") {
+  // Override status based on date to ensure correct tab categorization (Upcoming vs Completed).
+  // This ensures stays and experiences only move to Completed after their end date has passed.
+  if (status === "Upcoming" || status === "Completed") {
     const bookingDateStr =
       apiBooking.checkOutDate ||
       apiBooking.checkInDate ||
@@ -205,6 +207,8 @@ const transformBookingData = (apiBooking, listingData = null, eventData = null, 
 
       if (deadline < new Date()) {
         status = "Completed";
+      } else {
+        status = "Upcoming";
       }
     }
   }
@@ -432,7 +436,6 @@ const tabs = [
 const actionsByStatus = {
   Upcoming: [
     { label: "View Details", variant: "primary" },
-    { label: "Leave review", variant: "secondary" },
     { label: "Cancel Booking", variant: "secondary" },
   ],
   Completed: [
@@ -450,6 +453,7 @@ const Main = ({
   completedCount = 0,
   setCompletedOrders = null
 }) => {
+  const history = useHistory();
   const [activeTab, setActiveTab] = useState(tabs[0].id);
   const [displayedTab, setDisplayedTab] = useState(tabs[0].id);
   const [transitionPhase, setTransitionPhase] = useState("idle");
@@ -878,13 +882,14 @@ const Main = ({
   }
 
   return (
-    <div className={cn("section", styles.section)}>
+    <div className={cn("section-pd", styles.main)}>
+      <ProductNavbar top={100} left={60} />
       <div className={cn("container", styles.container)}>
-        <header className={styles.head}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 40 }}>
           <div className={styles.heading}>
             <h1 className={cn("h2", styles.title)}>My bookings</h1>
           </div>
-        </header>
+        </div>
         <div className={styles.tabsWrapper}>
           <div className={styles.tabs}>
             {tabs.map((tab) => (
@@ -934,8 +939,7 @@ const Main = ({
                           <span className={styles.category}>
                             {booking.category}
                           </span>
-                          {booking.bookingData?.paymentStatus &&
-                           booking.bookingData?.orderStatus !== "CANCELLED" && (
+                          {booking.bookingData?.orderStatus && (
                             <>
                               <span className={styles.dot} aria-hidden="true">
                                 •
@@ -950,14 +954,16 @@ const Main = ({
                                 lineHeight: "1",
                                 textTransform: "uppercase",
                                 letterSpacing: "0.5px",
-                                backgroundColor: booking.bookingData.paymentStatus === "SUCCESS" ? "#E8F5E9" :
-                                                 booking.bookingData.paymentStatus === "PENDING" ? "#FFF3E0" :
-                                                 booking.bookingData.paymentStatus === "FAILED" ? "#FFEBEE" : "#FFEBEE",
-                                color: booking.bookingData.paymentStatus === "SUCCESS" ? "#2E7D32" :
-                                       booking.bookingData.paymentStatus === "PENDING" ? "#E65100" :
-                                       booking.bookingData.paymentStatus === "FAILED" ? "#C62828" : "#C62828",
+                                backgroundColor: booking.bookingData.orderStatus === "CONFIRMED" ? "#E8F5E9" :
+                                                 booking.bookingData.orderStatus === "COMPLETED" ? "#E3F2FD" :
+                                                 booking.bookingData.orderStatus === "PENDING"   ? "#FFF3E0" :
+                                                 booking.bookingData.orderStatus === "CANCELLED" ? "#FFEBEE" : "#F3F4F6",
+                                color: booking.bookingData.orderStatus === "CONFIRMED" ? "#2E7D32" :
+                                       booking.bookingData.orderStatus === "COMPLETED" ? "#1565C0" :
+                                       booking.bookingData.orderStatus === "PENDING"   ? "#E65100" :
+                                       booking.bookingData.orderStatus === "CANCELLED" ? "#C62828" : "#6B7280",
                               }}>
-                                {booking.bookingData.paymentStatus}
+                                {booking.bookingData.orderStatus}
                               </span>
                             </>
                           )}
