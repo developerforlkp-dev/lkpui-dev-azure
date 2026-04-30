@@ -460,80 +460,6 @@ function ImgParallax({ src, alt }) {
   );
 }
 
-function RequirementField({ question, A, FG, M, B, S }) {
-  const [value, setValue] = useState(""); 
-  const fieldType = question.fieldType || question.question?.fieldType;
-  const title = question.title || question.question?.title;
-
-  if (fieldType === 'boolean') {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px dashed ${B}` }}>
-        <span style={{ fontSize: 14, color: FG, fontWeight: 500 }}>{title}</span>
-        <div 
-          onClick={() => setValue(!value)}
-          style={{ 
-            width: 44, height: 24, borderRadius: 12, background: value ? A : B, 
-            position: 'relative', cursor: 'pointer', transition: '0.3s' 
-          }}
-        >
-          <motion.div 
-            animate={{ x: value ? 22 : 2 }}
-            style={{ 
-              width: 20, height: 20, borderRadius: '50%', background: '#FFF', 
-              position: 'absolute', top: 2 
-            }} 
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (fieldType === 'text_single') {
-    return (
-      <div style={{ padding: '16px 0', borderBottom: `1px dashed ${B}` }}>
-        <p style={{ fontSize: 13, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{title}</p>
-        <input 
-          type="text" 
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Type your answer here..."
-          style={{ 
-            width: '100%', padding: '14px 20px', borderRadius: 12, 
-            border: `1px solid ${B}`, background: S, color: FG, outline: 'none',
-            fontSize: 14, fontWeight: 500
-          }}
-        />
-      </div>
-    );
-  }
-
-  if (fieldType === 'text_multi') {
-    return (
-      <div style={{ padding: '16px 0', borderBottom: `1px dashed ${B}` }}>
-        <p style={{ fontSize: 13, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{title}</p>
-        <textarea 
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Enter detailed information..."
-          rows={3}
-          style={{ 
-            width: '100%', padding: '14px 20px', borderRadius: 12, 
-            border: `1px solid ${B}`, background: S, color: FG, outline: 'none',
-            resize: 'vertical', fontSize: 14, fontWeight: 500, lineHeight: 1.6
-          }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: '12px 0' }}>
-      <div style={{ width: 6, height: 6, background: A, borderRadius: "50%", flexShrink: 0, marginTop: 6 }} />
-      <span style={{ fontSize: 14, color: FG, lineHeight: 1.4, fontWeight: 500 }}>{title}</span>
-    </div>
-  );
-}
-
 function PolicyItem({ rule, A, FG, M, B, S }) {
   const [op, setOp] = useState(false);
   const hasQuestions = Array.isArray(rule.questions) && rule.questions.length > 0;
@@ -550,14 +476,17 @@ function PolicyItem({ rule, A, FG, M, B, S }) {
           <ChevronDown size={18} color={M} />
         </motion.div>
       </button>
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {op && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.4, ease: E }} style={{ overflow: "hidden" }}>
             <div style={{ padding: "0 20px 40px 64px", maxWidth: 640 }}>
               {hasQuestions ? (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {rule.questions.map((q, i) => (
-                    <RequirementField key={i} question={q} A={A} FG={FG} M={M} B={B} S={S} />
+                    <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                      <div style={{ width: 6, height: 6, background: A, borderRadius: "50%", flexShrink: 0, marginTop: 6 }} />
+                      <span style={{ fontSize: 14, color: FG, lineHeight: 1.4, fontWeight: 500 }}>{q.title || q.question?.title}</span>
+                    </div>
                   ))}
                 </div>
               ) : (
