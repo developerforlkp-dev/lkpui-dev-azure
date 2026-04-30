@@ -269,6 +269,11 @@ const StayBookingSystem = ({
       const extraAdultsCount = Math.max(0, (guests.adults || 1) - pricing.baseAdultsLimit);
       const extraChildrenCount = Math.max(0, (guests.children || 0) - pricing.baseChildrenLimit);
 
+      const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
+      const customerName = userInfo.name || (userInfo.firstName ? `${userInfo.firstName} ${userInfo.lastName || ""}`.trim() : "") || userInfo.customerName || "Guest User";
+      const customerEmail = userInfo.email || userInfo.customerEmail || "guest@example.com";
+      const customerPhone = userInfo.customerPhone || (userInfo.phone ? (userInfo.countryCode || "+91") + userInfo.phone : "") || userInfo.phoneNumber || "+911234567890";
+
       const payload = {
         stayId: Number(stay.stayId || stay.id),
         checkInDate: checkInDate.format("YYYY-MM-DD"),
@@ -278,6 +283,10 @@ const StayBookingSystem = ({
         children: guests.children || 0,
         extraAdults: extraAdultsCount,
         extraChildren: extraChildrenCount,
+        customerName,
+        customerEmail,
+        customerPhone,
+        specialRequests: "",
         amount: pricing.finalTotal,
         paymentMethod: "razorpay",
         rooms: isPropertyBased
@@ -304,29 +313,99 @@ const StayBookingSystem = ({
       const paymentResponse = response?.payment || response?.data?.payment || response;
       const orderResponse = response?.order || response?.data?.order || response;
       
+      const extractRazorpayCredentials = (res) => {
+        let orderId = null;
+        let keyId = null;
+        const search = (obj) => {
+          if (!obj || typeof obj !== "object") return;
+          if (orderId && keyId) return;
+          for (const key of Object.keys(obj)) {
+            const lowerKey = key.toLowerCase();
+            const val = obj[key];
+            if (typeof val === "string") {
+              if (!orderId && val.startsWith("order_")) orderId = val;
+              if (!keyId && val.startsWith("rzp_")) keyId = val;
+            } else if (typeof val === "object") search(val);
+          }
+        };
+        search(res);
+        return { razorpayOrderId: orderId, razorpayKeyId: keyId };
+      };
+
+      const getFieldByAliases = (obj, aliases = []) => {
+        if (!obj || typeof obj !== "object") return null;
+        const aliasSet = new Set(aliases.map((k) => String(k).toLowerCase()));
+        let found = null;
+
+        const walk = (node) => {
+          if (!node || typeof node !== "object" || found) return;
+          for (const [k, v] of Object.entries(node)) {
+            if (found) return;
+            const keyLower = String(k).toLowerCase();
+            if (aliasSet.has(keyLower) && v != null && v !== "") {
+              found = v;
+              return;
+            }
+            if (v && typeof v === "object") walk(v);
+          }
+        };
+
+        walk(obj);
+        return found;
+      };
+
+      const extractedRZP = extractRazorpayCredentials(response);
+      
       const razorpayOrderId = 
         paymentResponse.razorpayOrderId || 
+        paymentResponse.razorpayorderid ||
         paymentResponse.razorpay_order_id || 
         orderResponse?.razorpayOrderId ||
+        orderResponse?.razorpayorderid ||
         orderResponse?.razorpay_order_id ||
         response?.razorpayOrderId ||
-        response?.razorpay_order_id;
+        response?.razorpayorderid ||
+        response?.razorpay_order_id ||
+        getFieldByAliases(response, ["razorpayOrderId", "razorpay_order_id", "razorpayorderid"]) ||
+        extractedRZP.razorpayOrderId;
         
       const razorpayKeyId = 
         paymentResponse.razorpayKeyId || 
+        paymentResponse.razorpaykeyid || 
         paymentResponse.razorpay_key_id || 
+        paymentResponse.razorpayKey ||
+        paymentResponse.razorpaykey ||
         paymentResponse.keyId || 
+        paymentResponse.keyid ||
         orderResponse?.razorpayKeyId ||
+        orderResponse?.razorpaykeyid ||
         orderResponse?.razorpay_key_id ||
+        orderResponse?.razorpayKey ||
+        orderResponse?.razorpaykey ||
+        orderResponse?.keyId ||
+        orderResponse?.keyid ||
         response?.razorpayKeyId ||
+        response?.razorpaykeyid ||
         response?.razorpay_key_id ||
+        response?.razorpayKey ||
+        response?.razorpaykey ||
+        response?.keyId ||
+        response?.keyid ||
+        getFieldByAliases(response, ["razorpayKeyId", "razorpay_key_id", "razorpaykeyid", "razorpayKey", "keyId", "keyid"]) ||
+        extractedRZP.razorpayKeyId ||
         localStorage.getItem("lastRazorpayKeyId") ||
         process.env.REACT_APP_RAZORPAY_KEY_ID ||
         "rzp_test_RaBjdu0Ed3p1gN";
 
       if (!razorpayOrderId) {
-        console.error("❌ Razorpay Order ID missing from response:", response);
-        alert("Payment initialization failed. Please contact support.");
+        const appOrderId = orderResponse?.orderId || response?.orderId || response?.data?.orderId || null;
+        console.error("❌ Razorpay Order ID missing from response:", {
+          appOrderId,
+          razorpayOrderId,
+          razorpayKeyId,
+          response
+        });
+        alert(`Payment initialization failed: Razorpay order was not generated${appOrderId ? ` (Order #${appOrderId})` : ""}.`);
         return;
       }
 
