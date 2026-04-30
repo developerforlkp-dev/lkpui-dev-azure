@@ -125,8 +125,8 @@ const StayBookingSystem = ({
     if (isPropertyBased) {
       totalBaseAdultsLimit = stay.maxAdults || stay.maxGuests || 1;
       totalBaseChildrenLimit = stay.maxChildren || 0;
-      totalExtraAdultsLimit = stay.maxExtraAdultsAllowed || stay.maxExtraBeds || 0;
-      totalExtraChildrenLimit = stay.maxExtraChildrenAllowed || 0;
+      totalExtraAdultsLimit = stay.maxExtraAdults || stay.maxExtraAdultsAllowed || stay.maxExtraBeds || 0;
+      totalExtraChildrenLimit = stay.maxExtraChildren || stay.maxExtraChildrenAllowed || 0;
       
       let basePrice = parseFloat(stay.fullPropertyB2cPrice || stay.b2cPrice || stay.price || 0);
       let extraAP = parseFloat(stay.fullPropertyExtraAdultPrice || stay.extraAdultPrice || 0);
@@ -168,8 +168,8 @@ const StayBookingSystem = ({
         totalOriginalPerNight += roomBasePrice * room.count;
         totalBaseAdultsLimit += (room.maxAdults || 1) * room.count;
         totalBaseChildrenLimit += (room.maxChildren || 0) * room.count;
-        totalExtraAdultsLimit += (room.maxExtraAdultsAllowed || room.maxExtraBeds || 0) * room.count;
-        totalExtraChildrenLimit += (room.maxExtraChildrenAllowed || 0) * room.count;
+        totalExtraAdultsLimit += (room.maxExtraAdults || room.maxExtraAdultsAllowed || room.maxExtraBeds || 0) * room.count;
+        totalExtraChildrenLimit += (room.maxExtraChildren || room.maxExtraChildrenAllowed || 0) * room.count;
 
         // Note: For multi-room, extra guest calculation is complex. 
         // We'll apply extra fees based on the TOTAL overflow across all selected rooms.
@@ -265,49 +265,147 @@ const StayBookingSystem = ({
 
     setLoading(true);
     try {
+      const isPropertyBased = stay?.bookingScope === "Property-Based";
+      const extraAdultsCount = Math.max(0, (guests.adults || 1) - pricing.baseAdultsLimit);
+      const extraChildrenCount = Math.max(0, (guests.children || 0) - pricing.baseChildrenLimit);
+
+      const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
+      const customerName = userInfo.name || (userInfo.firstName ? `${userInfo.firstName} ${userInfo.lastName || ""}`.trim() : "") || userInfo.customerName || "Guest User";
+      const customerEmail = userInfo.email || userInfo.customerEmail || "guest@example.com";
+      const customerPhone = userInfo.customerPhone || (userInfo.phone ? (userInfo.countryCode || "+91") + userInfo.phone : "") || userInfo.phoneNumber || "+911234567890";
+
       const payload = {
         stayId: Number(stay.stayId || stay.id),
         checkInDate: checkInDate.format("YYYY-MM-DD"),
         checkOutDate: checkOutDate.format("YYYY-MM-DD"),
         numberOfGuests: (guests.adults || 1) + (guests.children || 0),
+        adults: guests.adults || 1,
+        children: guests.children || 0,
+        extraAdults: extraAdultsCount,
+        extraChildren: extraChildrenCount,
+        customerName,
+        customerEmail,
+        customerPhone,
+        specialRequests: "",
         amount: pricing.finalTotal,
         paymentMethod: "razorpay",
-        rooms: resolvedSelectedRooms.map(r => ({
-          roomId: r.roomId || r.id,
-          roomsBooked: r.count,
-          adults: guests.adults || 1,
-          children: guests.children || 0,
-          mealPlanCode: r.mealPlan || "EP"
-        }))
+        rooms: isPropertyBased
+          ? [] // Property-based: no individual rooms, extras tracked at top level
+          : resolvedSelectedRooms.map(r => {
+              // Per-room: distribute base adults/children from this room's capacity
+              const roomBaseAdults = (r.maxAdults || 1) * r.count;
+              const roomBaseChildren = (r.maxChildren || 0) * r.count;
+              const roomExtraAdults = Math.max(0, (guests.adults || 1) - roomBaseAdults);
+              const roomExtraChildren = Math.max(0, (guests.children || 0) - roomBaseChildren);
+              return {
+                roomId: r.roomId || r.id,
+                roomsBooked: r.count,
+                adults: guests.adults || 1,
+                children: guests.children || 0,
+                extraAdults: roomExtraAdults,
+                extraChildren: roomExtraChildren,
+                mealPlanCode: r.mealPlan || "EP"
+              };
+            })
       };
 
       const response = await createStayOrder(payload);
       const paymentResponse = response?.payment || response?.data?.payment || response;
       const orderResponse = response?.order || response?.data?.order || response;
       
+      const extractRazorpayCredentials = (res) => {
+        let orderId = null;
+        let keyId = null;
+        const search = (obj) => {
+          if (!obj || typeof obj !== "object") return;
+          if (orderId && keyId) return;
+          for (const key of Object.keys(obj)) {
+            const lowerKey = key.toLowerCase();
+            const val = obj[key];
+            if (typeof val === "string") {
+              if (!orderId && val.startsWith("order_")) orderId = val;
+              if (!keyId && val.startsWith("rzp_")) keyId = val;
+            } else if (typeof val === "object") search(val);
+          }
+        };
+        search(res);
+        return { razorpayOrderId: orderId, razorpayKeyId: keyId };
+      };
+
+      const getFieldByAliases = (obj, aliases = []) => {
+        if (!obj || typeof obj !== "object") return null;
+        const aliasSet = new Set(aliases.map((k) => String(k).toLowerCase()));
+        let found = null;
+
+        const walk = (node) => {
+          if (!node || typeof node !== "object" || found) return;
+          for (const [k, v] of Object.entries(node)) {
+            if (found) return;
+            const keyLower = String(k).toLowerCase();
+            if (aliasSet.has(keyLower) && v != null && v !== "") {
+              found = v;
+              return;
+            }
+            if (v && typeof v === "object") walk(v);
+          }
+        };
+
+        walk(obj);
+        return found;
+      };
+
+      const extractedRZP = extractRazorpayCredentials(response);
+      
       const razorpayOrderId = 
         paymentResponse.razorpayOrderId || 
+        paymentResponse.razorpayorderid ||
         paymentResponse.razorpay_order_id || 
         orderResponse?.razorpayOrderId ||
+        orderResponse?.razorpayorderid ||
         orderResponse?.razorpay_order_id ||
         response?.razorpayOrderId ||
-        response?.razorpay_order_id;
+        response?.razorpayorderid ||
+        response?.razorpay_order_id ||
+        getFieldByAliases(response, ["razorpayOrderId", "razorpay_order_id", "razorpayorderid"]) ||
+        extractedRZP.razorpayOrderId;
         
       const razorpayKeyId = 
         paymentResponse.razorpayKeyId || 
+        paymentResponse.razorpaykeyid || 
         paymentResponse.razorpay_key_id || 
+        paymentResponse.razorpayKey ||
+        paymentResponse.razorpaykey ||
         paymentResponse.keyId || 
+        paymentResponse.keyid ||
         orderResponse?.razorpayKeyId ||
+        orderResponse?.razorpaykeyid ||
         orderResponse?.razorpay_key_id ||
+        orderResponse?.razorpayKey ||
+        orderResponse?.razorpaykey ||
+        orderResponse?.keyId ||
+        orderResponse?.keyid ||
         response?.razorpayKeyId ||
+        response?.razorpaykeyid ||
         response?.razorpay_key_id ||
+        response?.razorpayKey ||
+        response?.razorpaykey ||
+        response?.keyId ||
+        response?.keyid ||
+        getFieldByAliases(response, ["razorpayKeyId", "razorpay_key_id", "razorpaykeyid", "razorpayKey", "keyId", "keyid"]) ||
+        extractedRZP.razorpayKeyId ||
         localStorage.getItem("lastRazorpayKeyId") ||
         process.env.REACT_APP_RAZORPAY_KEY_ID ||
         "rzp_test_RaBjdu0Ed3p1gN";
 
       if (!razorpayOrderId) {
-        console.error("❌ Razorpay Order ID missing from response:", response);
-        alert("Payment initialization failed. Please contact support.");
+        const appOrderId = orderResponse?.orderId || response?.orderId || response?.data?.orderId || null;
+        console.error("❌ Razorpay Order ID missing from response:", {
+          appOrderId,
+          razorpayOrderId,
+          razorpayKeyId,
+          response
+        });
+        alert(`Payment initialization failed: Razorpay order was not generated${appOrderId ? ` (Order #${appOrderId})` : ""}.`);
         return;
       }
 
@@ -324,8 +422,33 @@ const StayBookingSystem = ({
       }
 
       const receipt = [
-        { title: `Base Stay (${pricing.nightsCount} nights)`, content: `₹${formatPrice(pricing.originalPerNight * pricing.nightsCount)}` }
+        { title: `Base Stay (${pricing.nightsCount} night${pricing.nightsCount !== 1 ? "s" : ""})`, content: `₹${formatPrice(pricing.originalPerNight * pricing.nightsCount)}` }
       ];
+
+      // Extra guest fees — shown only when there are extras
+      if (extraAdultsCount > 0) {
+        const extraAdultRate = isPropertyBased
+          ? parseFloat(stay.fullPropertyExtraAdultPrice || stay.extraAdultPrice || 0)
+          : resolvedSelectedRooms.length > 0
+            ? parseFloat(resolvedSelectedRooms[0].extraAdultPrice || stay.extraAdultPrice || 0)
+            : parseFloat(stay.extraAdultPrice || 0);
+        receipt.push({
+          title: `Extra Adult${extraAdultsCount > 1 ? "s" : ""} (${extraAdultsCount} × ₹${formatPrice(extraAdultRate)} × ${pricing.nightsCount} nights)`,
+          content: `₹${formatPrice(extraAdultsCount * extraAdultRate * pricing.nightsCount)}`
+        });
+      }
+
+      if (extraChildrenCount > 0) {
+        const extraChildRate = isPropertyBased
+          ? parseFloat(stay.fullPropertyExtraChildPrice || stay.extraChildPrice || 0)
+          : resolvedSelectedRooms.length > 0
+            ? parseFloat(resolvedSelectedRooms[0].extraChildPrice || stay.extraChildPrice || 0)
+            : parseFloat(stay.extraChildPrice || 0);
+        receipt.push({
+          title: `Extra Child${extraChildrenCount > 1 ? "ren" : ""} (${extraChildrenCount} × ₹${formatPrice(extraChildRate)} × ${pricing.nightsCount} nights)`,
+          content: `₹${formatPrice(extraChildrenCount * extraChildRate * pricing.nightsCount)}`
+        });
+      }
 
       if (pricing.discount > 0) {
         receipt.push({ title: `Discount (${pricing.discountPercent}%)`, content: `- ₹${formatPrice(pricing.discount)}` });
@@ -335,7 +458,9 @@ const StayBookingSystem = ({
       receipt.push({ title: "Service Fee (2%)", content: `₹${formatPrice(pricing.serviceFee)}` });
       receipt.push({ title: "Total", content: `₹${formatPrice(pricing.finalTotal)}` });
 
-      const roomSummary = resolvedSelectedRooms.map(r => `${r.count}x ${r.roomName || r.name}`).join(", ");
+      const roomSummary = isPropertyBased
+        ? "Full Property"
+        : resolvedSelectedRooms.map(r => `${r.count}x ${r.roomName || r.name}`).join(", ");
 
       const bookingData = {
         stayId: payload.stayId,
@@ -344,8 +469,10 @@ const StayBookingSystem = ({
         isStay: true,
         checkInDate: checkInDate.format("MMM DD, YYYY"),
         checkOutDate: checkOutDate.format("MMM DD, YYYY"),
-        roomType: roomSummary || "Full Property",
+        roomType: roomSummary,
         guests: guests,
+        extraAdults: extraAdultsCount,
+        extraChildren: extraChildrenCount,
         receipt: receipt
       };
       localStorage.setItem("pendingBooking", JSON.stringify(bookingData));

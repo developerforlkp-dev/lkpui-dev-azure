@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useLocation, useParams, useHistory } from "react-router-dom";
 import cn from "classnames";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
-import { ArrowDown, Check, Zap, MapPin, ChevronDown, Clock, User, Camera, Coffee, Phone, Info, Plus, Minus, Baby, Languages, ShieldCheck, ChevronLeft, Sparkles, Star } from "lucide-react";
+import { ArrowDown, Check, Zap, MapPin, ChevronDown, Clock, User, Users, Camera, Coffee, Phone, Info, Plus, Minus, Baby, Languages, ShieldCheck, ChevronLeft, Sparkles, Star } from "lucide-react";
 import { useTheme } from "../../components/JUI/Theme";
 import { Cursor, ProgressBar, Rev, Chars, Mq, SHdr, E, Soul } from "../../components/JUI/UI";
 import { BookingSystem } from "../../components/JUI/BookingSystem";
@@ -276,20 +276,50 @@ const ExperienceProduct = () => {
 
   const handleUpdateAddonQuantity = (addon, delta) => {
     const addonId = addon.addonId || addon.id;
+    const pricingType = addon.pricingType || (addon.priceType === "per_booking" ? "Group" : "Individual");
+    
     setSelectedAddOns((prev) => {
-      const existingIndex = prev.findIndex(a => (a.addonId || a.id) === addonId);
-      if (existingIndex > -1) {
-        const newQuantity = (prev[existingIndex].quantity || 1) + delta;
-        if (newQuantity <= 0) {
-          return prev.filter((_, i) => i !== existingIndex);
+      const existing = prev.find((a) => (a.addonId || a.id) === addonId);
+      
+      if (delta > 0) {
+        // Enforcement: If it's a Group item, quantity is ALWAYS 1
+        if (pricingType === "Group") {
+          // If already selected, do nothing
+          if (existing) return prev;
+
+          // Only one Group item type allowed per booking
+          const otherGroupItem = prev.find(a => 
+            (a.pricingType === "Group" || (a.priceType === "per_booking"))
+          );
+          if (otherGroupItem) {
+            return [...prev.filter(a => (a.addonId || a.id) !== (otherGroupItem.addonId || otherGroupItem.id)), { ...addon, quantity: 1, pricingType }];
+          }
+          return [...prev, { ...addon, quantity: 1, pricingType }];
         }
-        const updated = [...prev];
-        updated[existingIndex] = { ...updated[existingIndex], quantity: newQuantity };
-        return updated;
-      } else if (delta > 0) {
-        return [...prev, { ...addon, quantity: 1 }];
+
+        // For Individual items, allow increasing quantity
+        if (existing) {
+          return prev.map((a) =>
+            (a.addonId || a.id) === addonId
+              ? { ...a, quantity: (a.quantity || 1) + delta }
+              : a
+          );
+        }
+        return [...prev, { ...addon, quantity: 1, pricingType }];
+      } else {
+        // Removal/Decrease logic
+        if (existing) {
+          if (existing.quantity > 1) {
+            return prev.map((a) =>
+              (a.addonId || a.id) === addonId
+                ? { ...a, quantity: a.quantity - 1 }
+                : a
+            );
+          }
+          return prev.filter((a) => (a.addonId || a.id) !== addonId);
+        }
+        return prev;
       }
-      return prev;
     });
   };
 
@@ -562,6 +592,7 @@ const ExperienceProduct = () => {
               <Mq items={listing?.tags || displayTags} bg={BG} />
             </div>
 
+
             <Rev delay={0.4} style={{ marginTop: 16 }}>
               <div style={{ background: W, border: `1px solid ${B}`, padding: "64px", display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 80 }} className="details-inner">
                 <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
@@ -570,6 +601,7 @@ const ExperienceProduct = () => {
                     {(listing?.addons || []).length > 0 ? (listing.addons.map((item, i) => {
                       const addon = item.addon || item;
                       const addonId = addon.addonId || addon.id;
+                      const pricingType = addon.pricingType || (addon.priceType === "per_booking" ? "Group" : "Individual");
                       const addonImage = addon.imageUrl || (addon.imageUrls && addon.imageUrls[0]) || addon.image;
                       const isSelected = selectedAddOns.some(a => (a.addonId || a.id) === addonId);
 
@@ -606,26 +638,49 @@ const ExperienceProduct = () => {
                           </div>
                           <div style={{ flex: 1 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                              <p style={{ fontSize: 18, fontWeight: 700, color: FG, marginBottom: 8 }}>{addon.title}</p>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <p style={{ fontSize: 18, fontWeight: 700, color: FG }}>{addon.title}</p>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: pricingType === "Group" ? "#d14343" : A, background: pricingType === "Group" ? "#d1434322" : AL, padding: "2px 8px", borderRadius: 4, textTransform: "uppercase" }}>{pricingType}</span>
+                              </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                 {isSelected ? (
-                                  <div style={{ display: "flex", alignItems: "center", gap: 16, background: S, borderRadius: 100, padding: "4px 8px", border: `1px solid ${B}` }}>
+                                  pricingType === "Group" ? (
                                     <button
                                       onClick={() => handleUpdateAddonQuantity(addon, -1)}
-                                      style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, color: A }}
+                                      style={{
+                                        background: AL,
+                                        color: A,
+                                        border: `1px solid ${A}`,
+                                        borderRadius: 100,
+                                        padding: "6px 20px",
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.05em"
+                                      }}
                                     >
-                                      <Minus size={14} />
+                                      Remove
                                     </button>
-                                    <span style={{ fontSize: 13, fontWeight: 700, color: FG, minWidth: 20, textAlign: "center" }}>
-                                      {selectedAddOns.find(a => (a.addonId || a.id) === addonId)?.quantity || 1}
-                                    </span>
-                                    <button
-                                      onClick={() => handleUpdateAddonQuantity(addon, 1)}
-                                      style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, color: A }}
-                                    >
-                                      <Plus size={14} />
-                                    </button>
-                                  </div>
+                                  ) : (
+                                    <div style={{ display: "flex", alignItems: "center", gap: 16, background: S, borderRadius: 100, padding: "4px 8px", border: `1px solid ${B}` }}>
+                                      <button
+                                        onClick={() => handleUpdateAddonQuantity(addon, -1)}
+                                        style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, color: A }}
+                                      >
+                                        <Minus size={14} />
+                                      </button>
+                                      <span style={{ fontSize: 13, fontWeight: 700, color: FG, minWidth: 20, textAlign: "center" }}>
+                                        {selectedAddOns.find(a => (a.addonId || a.id) === addonId)?.quantity || 1}
+                                      </span>
+                                      <button
+                                        onClick={() => handleUpdateAddonQuantity(addon, 1)}
+                                        style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, color: A }}
+                                      >
+                                        <Plus size={14} />
+                                      </button>
+                                    </div>
+                                  )
                                 ) : (
                                   <button
                                     onClick={() => handleUpdateAddonQuantity(addon, 1)}
@@ -855,7 +910,10 @@ const ExperienceProduct = () => {
           </div>
         </section>
 
-        <BookingSystem listing={listing} selectedAddOns={selectedAddOns} />
+        <BookingSystem 
+          listing={listing} 
+          selectedAddOns={selectedAddOns} 
+        />
       </main>
       <style>{`
         @media(max-width: 900px) { 
@@ -873,79 +931,7 @@ const ExperienceProduct = () => {
   );
 };
 
-function RequirementField({ question, A, FG, M, B, AL, S }) {
-  const [value, setValue] = useState(""); 
-  const fieldType = question.fieldType || question.question?.fieldType;
-  const title = question.title || question.question?.title;
 
-  if (fieldType === 'boolean') {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderBottom: `1px dashed ${B}` }}>
-        <span style={{ fontSize: 14, color: FG, fontWeight: 500 }}>{title}</span>
-        <div 
-          onClick={() => setValue(!value)}
-          style={{ 
-            width: 44, height: 24, borderRadius: 12, background: value ? A : B, 
-            position: 'relative', cursor: 'pointer', transition: '0.3s' 
-          }}
-        >
-          <motion.div 
-            animate={{ x: value ? 22 : 2 }}
-            style={{ 
-              width: 20, height: 20, borderRadius: '50%', background: '#FFF', 
-              position: 'absolute', top: 2 
-            }} 
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (fieldType === 'text_single') {
-    return (
-      <div style={{ padding: '20px 0', borderBottom: `1px dashed ${B}` }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 12 }}>{title}</p>
-        <input 
-          type="text" 
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Type your answer..."
-          style={{ 
-            width: '100%', padding: '16px 24px', borderRadius: 16, 
-            border: `1px solid ${B}`, background: AL, color: FG, outline: 'none',
-            fontSize: 14, fontWeight: 500
-          }}
-        />
-      </div>
-    );
-  }
-
-  if (fieldType === 'text_multi') {
-    return (
-      <div style={{ padding: '20px 0', borderBottom: `1px dashed ${B}` }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: M, textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 12 }}>{title}</p>
-        <textarea 
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Enter details..."
-          rows={3}
-          style={{ 
-            width: '100%', padding: '16px 24px', borderRadius: 16, 
-            border: `1px solid ${B}`, background: AL, color: FG, outline: 'none',
-            resize: 'vertical', fontSize: 14, fontWeight: 500, lineHeight: 1.6
-          }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <li style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-      <div style={{ width: 6, height: 6, background: A, borderRadius: "50%", flexShrink: 0, marginTop: 6 }} />
-      <span style={{ fontSize: 14, color: FG, lineHeight: 1.4, fontWeight: 500 }}>{title}</span>
-    </li>
-  );
-}
 
 function PolicyItem({ req }) {
   const { tokens: { FG, A, M, AL, B, S } } = useTheme();
@@ -1008,7 +994,7 @@ function PolicyItem({ req }) {
                   {questions.map((q, j) => (
                     <li key={j} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                       <div style={{ width: 6, height: 6, background: A, borderRadius: "50%", flexShrink: 0, marginTop: 6 }} />
-                      <span style={{ fontSize: 14, color: FG, lineHeight: 1.4, fontWeight: 500 }}>{q.question?.title}</span>
+                      <span style={{ fontSize: 14, color: FG, lineHeight: 1.4, fontWeight: 500 }}>{q.title || q.question?.title}</span>
                     </li>
                   ))}
                 </ul>

@@ -17,7 +17,11 @@ const asNumber = (value) => {
 
 const asDate = (value) => {
   if (!value) return null;
-  const date = new Date(value);
+  // If the backend sends UTC strings but they are actually local times, strip the Z
+  const normalizedValue = typeof value === "string" && value.endsWith("Z") 
+    ? value.slice(0, -1) 
+    : value;
+  const date = new Date(normalizedValue);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
@@ -395,13 +399,42 @@ const normalizeBookingTime = (value) => {
 const getRazorpayKeyFromCache = () => {
   try {
     const cachedKey = localStorage.getItem("lastRazorpayKeyId");
-    if (cachedKey) return cachedKey;
+    if (cachedKey && cachedKey.startsWith("rzp_")) return cachedKey;
     const pendingPayment = localStorage.getItem("pendingPayment");
     if (pendingPayment) return JSON.parse(pendingPayment)?.razorpayKeyId;
   } catch (e) {
     console.warn("Could not read cached Razorpay key:", e);
   }
   return null;
+};
+
+const extractRazorpayCredentials = (res) => {
+  let orderId = null;
+  let keyId = null;
+
+  const search = (obj) => {
+    if (!obj || typeof obj !== "object") return;
+    if (orderId && keyId) return;
+
+    for (const key of Object.keys(obj)) {
+      const lowerKey = key.toLowerCase();
+      const val = obj[key];
+
+      if (typeof val === "string") {
+        if (!orderId && val.startsWith("order_") && (lowerKey.includes("razorpay") || lowerKey.includes("order"))) {
+          orderId = val;
+        }
+        if (!keyId && val.startsWith("rzp_") && (lowerKey.includes("razorpay") || lowerKey.includes("key"))) {
+          keyId = val;
+        }
+      } else if (typeof val === "object") {
+        search(val);
+      }
+    }
+  };
+
+  search(res);
+  return { razorpayOrderId: orderId, razorpayKeyId: keyId };
 };
 
 const addDateRangeKeys = (keys, startValue, endValue) => {
@@ -877,6 +910,8 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState("");
   const [privateBooking, setPrivateBooking] = useState(false);
+  
+
   const isEventBooking = type === "event";
 
   useEffect(() => {
@@ -1399,7 +1434,10 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
         const order = res?.order || res;
         const payment = res?.payment || res?.data?.payment || res?.order?.payment || order?.payment || null;
         const orderId = order?.orderId || order?.id || res?.orderId || res?.id;
-        const razorpayOrderId = payment?.razorpayOrderId || order?.razorpayOrderId || res?.razorpayOrderId || order?.razorpay_order_id || res?.razorpay_order_id;
+        
+        const extractedRZP = extractRazorpayCredentials(res);
+
+        const razorpayOrderId = payment?.razorpayOrderId || order?.razorpayOrderId || res?.razorpayOrderId || order?.razorpay_order_id || res?.razorpay_order_id || extractedRZP.razorpayOrderId;
         const currency = listing?.currency || payment?.currency || "INR";
         const amountInPaise = payment?.amount || Math.round(finalTotal * 100);
         const razorpayKeyId =
@@ -1414,9 +1452,17 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
           res?.razorpayKey ||
           order?.keyId ||
           res?.keyId ||
+          extractedRZP.razorpayKeyId ||
           process.env.REACT_APP_RAZORPAY_KEY_ID ||
           getRazorpayKeyFromCache() ||
           "rzp_test_RaBjdu0Ed3p1gN";
+
+        if (!razorpayOrderId) {
+          console.error("❌ Razorpay Order ID missing from response:", res);
+          alert("Payment initialization failed. Please contact support.");
+          if (isMountedRef.current) setBookingLoading(false);
+          return;
+        }
 
         if (razorpayKeyId) {
           try { localStorage.setItem("lastRazorpayKeyId", razorpayKeyId); } catch (e) {}
@@ -1655,13 +1701,18 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
       const order = res?.order || res?.data?.order || res;
       const payment = res?.payment || res?.data?.payment || order?.payment || null;
       const orderId = order?.orderId || order?.id || res?.orderId || res?.id || res?.data?.orderId || res?.data?.id;
+      
+      const extractedRZP = extractRazorpayCredentials(res);
+
       const razorpayOrderId =
         payment?.razorpayOrderId ||
         payment?.razorpay_order_id ||
         order?.razorpayOrderId ||
         order?.razorpay_order_id ||
         res?.razorpayOrderId ||
-        res?.razorpay_order_id;
+        res?.razorpay_order_id ||
+        extractedRZP.razorpayOrderId;
+
       const razorpayKeyId =
         payment?.razorpayKeyId ||
         payment?.razorpay_key_id ||
@@ -1670,6 +1721,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
         order?.razorpay_key_id ||
         res?.razorpayKeyId ||
         res?.razorpay_key_id ||
+        extractedRZP.razorpayKeyId ||
         process.env.REACT_APP_RAZORPAY_KEY_ID ||
         getRazorpayKeyFromCache() ||
         "rzp_test_RaBjdu0Ed3p1gN";
