@@ -196,9 +196,7 @@ const FilterSidebar = ({
 
   const handleRatingChange = (rating) => {
     const current = filters.ratings || [];
-    const updated = current.includes(rating)
-      ? current.filter((x) => x !== rating)
-      : [...current, rating];
+    const updated = current.includes(rating) ? [] : [rating];
     onFilterChange("ratings", updated);
   };
 

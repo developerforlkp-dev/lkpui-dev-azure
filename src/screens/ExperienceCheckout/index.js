@@ -571,10 +571,11 @@ const Checkout = () => {
     }
 
     // Last resort
-    const addOnsPrice = selectedAddOns.reduce(
-      (sum, addOn) => sum + (addOn?.priceValue || addOn?.price || 0),
-      0
-    );
+    const addOnsPrice = selectedAddOns.reduce((sum, addOn) => {
+      const unitPrice = Number(addOn?.priceValue || addOn?.price || 0) || 0;
+      const qty = Number(addOn?.quantity || 1) || 1;
+      return sum + (unitPrice * qty);
+    }, 0);
     return {
       addOnsTotal: addOnsPrice,
       finalTotal: addOnsPrice,

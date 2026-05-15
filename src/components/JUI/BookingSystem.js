@@ -1360,21 +1360,16 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
     setStartTime(firstSlot ? firstSlot.slotName : null);
   }, [canSelectMultipleEventSlots, eventSlots, isEventBooking, selectedEventSlotIds, isEventSlotAccessible]);
 
-  const getAddonLineTotal = useCallback((item, guestCount) => {
+  const getAddonLineTotal = useCallback((item) => {
     const addon = item?.addon || item || {};
     const addonPrice = parseFloat(addon?.price || addon?.addonPrice || 0) || 0;
     const quantity = Number(item?.quantity || addon?.quantity || 1) || 1;
-    const pricingTypeRaw = String(addon?.pricingType || addon?.pricing_type || "").toLowerCase();
-    const isIndividualAddon = pricingTypeRaw === "individual";
-    const billableGuestCount = Math.max(1, Number(guestCount || 0));
-    return isIndividualAddon
-      ? addonPrice * quantity * billableGuestCount
-      : addonPrice;
+    return addonPrice * quantity;
   }, []);
 
   // Calculate addon total
   const addOnsTotal = selectedAddOns.reduce((sum, item) => (
-    sum + getAddonLineTotal(item, totalGuests)
+    sum + getAddonLineTotal(item)
   ), 0);
 
   // Extract proper price depending on whether a time slot is selected
@@ -1906,14 +1901,10 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
       const addon = item.addon || item;
       const id = addon.addonId || addon.id;
       const quantity = Number(item.quantity || addon.quantity || 1) || 1;
-      const pricingTypeRaw = String(addon?.pricingType || addon?.pricing_type || "").toLowerCase();
-      const isIndividualAddon = pricingTypeRaw === "individual";
-      const addonLineTotal = getAddonLineTotal(item, totalGuests);
+      const addonLineTotal = getAddonLineTotal(item);
       addOnQuantities[id] = quantity;
       receipt.push({
-        title: isIndividualAddon
-          ? `${addon.title || "Add-on"} × ${quantity} × ${Math.max(1, totalGuests)} guest${Math.max(1, totalGuests) > 1 ? "s" : ""}`
-          : `${addon.title || "Add-on"} × ${quantity}`,
+        title: `${addon.title || "Add-on"} × ${quantity}`,
         content: `₹${addonLineTotal.toFixed(2)}`,
         kind: "addon",
         showInCheckout: false
@@ -1981,7 +1972,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
         addonId,
         addonName: addon.title || addon.name || addon.addonName || "Add-on",
         addonPrice: parseFloat(addon.price || addon.addonPrice || 0),
-        quantity: addon.quantity || 1,
+        quantity: Number(item.quantity || addon.quantity || 1) || 1,
       };
     }).filter(Boolean);
 

@@ -202,6 +202,7 @@ export const getFilteredListings = async ({
   businessInterestId,
   categoryType,
   categoryValues = [],
+  ratingFilter,
   limit = 20,
   offset = 0,
   sortBy = "newest",
@@ -227,6 +228,9 @@ export const getFilteredListings = async ({
     }
     if (normalizedCategoryValues.length > 0) {
       params.categoryValues = normalizedCategoryValues;
+    }
+    if (ratingFilter !== undefined && ratingFilter !== null && String(ratingFilter).trim() !== "") {
+      params.ratingFilter = Number(ratingFilter);
     }
 
     const response = await ListingsAPI.get("/public/listings/filter", { params });

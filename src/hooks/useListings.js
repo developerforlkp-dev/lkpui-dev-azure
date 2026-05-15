@@ -64,18 +64,20 @@ export const useListings = ({
         Array.isArray(categoryFilter.categoryValues) &&
         categoryFilter.categoryValues.length > 0
       );
+      const hasRatingFilter = Array.isArray(filters.ratings) && filters.ratings.length > 0;
 
-      if (hasCategoryFilter) {
+      if (hasCategoryFilter || hasRatingFilter) {
         const mappedBusinessInterestId =
-          categoryFilter.businessInterestId || mapBusinessInterestId(businessInterest);
+          categoryFilter?.businessInterestId || mapBusinessInterestId(businessInterest);
 
         const filteredResponse = await getFilteredListings({
           businessInterestId: mappedBusinessInterestId,
-          categoryType: categoryFilter.categoryType,
-          categoryValues: categoryFilter.categoryValues,
+          categoryType: categoryFilter?.categoryType,
+          categoryValues: categoryFilter?.categoryValues || [],
+          ratingFilter: hasRatingFilter ? Math.max(...filters.ratings) : undefined,
           limit,
           offset: nextOffset,
-          sortBy: categoryFilter.sortBy || "newest",
+          sortBy: categoryFilter?.sortBy || "newest",
         });
 
         listings = filteredResponse.listings || [];
