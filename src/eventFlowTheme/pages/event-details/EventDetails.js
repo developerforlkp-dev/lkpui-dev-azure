@@ -312,7 +312,7 @@ const ScopedStyles = () => (
     #cur-ring { position: fixed; width: 38px; height: 38px; border: 1.5px solid var(--AL); border-radius: 50%; pointer-events: none; z-index: 99998; transform: translate(-50%, -50%); transition: width 0.3s, height 0.3s, border-color 0.3s; }
     
     .gallery-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; align-items: start; height: 850px; overflow: hidden; border-radius: 40px; }
-    .artist-row { display: grid; grid-template-columns: 80px 1fr 150px 90px; gap: 24px; padding: 26px 0; border-bottom: 1px solid var(--B); align-items: center; cursor: default; transition: padding 0.3s, background 0.3s; }
+    .artist-row { display: grid; grid-template-columns: 80px 1fr 150px; gap: 24px; padding: 26px 0; border-bottom: 1px solid var(--B); align-items: center; cursor: default; transition: padding 0.3s, background 0.3s; }
     .artist-image-tile { width: 150px; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: var(--S); border: 1px solid var(--B); }
     .artist-image-tile img { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(1); transition: filter 0.55s cubic-bezier(0.22, 1, 0.36, 1), transform 0.55s cubic-bezier(0.22, 1, 0.36, 1); }
     .artist-row:hover .artist-image-tile img { filter: grayscale(0); transform: scale(1.04); }
@@ -991,9 +991,6 @@ function Artists({ event }) {
                     </div>
                   )}
                 </div>
-                <motion.div animate={{ x: hov === a.id ? 4 : 0, opacity: hov === a.id ? 1 : 0.2 }} style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <ArrowRight size={16} color={A} />
-                </motion.div>
               </motion.div>
             ))}
           </div>
