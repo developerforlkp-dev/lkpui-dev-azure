@@ -289,6 +289,7 @@ const Login = ({ onClose }) => {
               theme="filled_blue"
               size="large"
               shape="pill"
+              width="350"
             />
           </div>
           <div className={styles.note}>Or continue with phone number</div>
