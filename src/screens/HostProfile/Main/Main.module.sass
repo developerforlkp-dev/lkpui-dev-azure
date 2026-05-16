@@ -9,15 +9,83 @@
     +m
         padding: 0 8px
 
-.photo
-    margin: 0 -80px
-    +d
-        margin: 0 -40px
-    +t
-        display: none
-    img
-        width: 100%
-        border-radius: 24px
+.hero
+    position: relative
+    overflow: hidden
+    border-radius: 24px
+    border: 1px solid $n6
+    background: linear-gradient(140deg, rgba(55,114,255,0.08) 0%, rgba(183,228,255,0.22) 45%, rgba(255,255,255,0.85) 100%)
+    min-height: 180px
+    margin-bottom: 28px
+    +dark
+        border-color: $n3
+        background: linear-gradient(140deg, rgba(55,114,255,0.18) 0%, rgba(16,24,40,0.75) 55%, rgba(18,18,18,0.95) 100%)
+
+.heroContent
+    position: relative
+    z-index: 2
+    padding: 30px 36px
+    +m
+        padding: 22px 18px
+
+.heroEyebrow
+    +caption-bold-2
+    letter-spacing: .16em
+    text-transform: uppercase
+    color: $p4
+    margin-bottom: 10px
+
+.heroTitle
+    +dm-sans
+    font-size: 42px
+    line-height: 1.06
+    letter-spacing: -.02em
+    color: $n2
+    margin-bottom: 8px
+    +m
+        font-size: 30px
+    +dark
+        color: $n8
+
+.heroMeta
+    display: inline-flex
+    align-items: center
+    gap: 10px
+    +button-2
+    color: $n3
+    +dark
+        color: $n6
+
+.heroGlowOne,
+.heroGlowTwo
+    position: absolute
+    border-radius: 50%
+    filter: blur(0px)
+    animation: floatGlow 8s ease-in-out infinite
+    pointer-events: none
+
+.heroGlowOne
+    width: 240px
+    height: 240px
+    right: -60px
+    top: -80px
+    background: rgba(55,114,255,0.16)
+
+.heroGlowTwo
+    width: 200px
+    height: 200px
+    right: 200px
+    bottom: -120px
+    animation-delay: 1.2s
+    background: rgba(69,183,255,0.16)
+
+@keyframes floatGlow
+    0%
+        transform: translateY(0) translateX(0)
+    50%
+        transform: translateY(-12px) translateX(10px)
+    100%
+        transform: translateY(0) translateX(0)
 
 .row
     display: flex
@@ -30,7 +98,7 @@
     z-index: 3
     flex-shrink: 0
     width: 352px
-    margin-top: -125px
+    margin-top: 0
     +d
         width: 300px
         padding: 32px 16px 

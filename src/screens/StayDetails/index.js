@@ -568,8 +568,17 @@ function PolicyItem({ rule, A, FG, M, B, S }) {
 }
 
 function StayPoliciesAndContact({ stay, hostData, hostAvatar }) {
+  const history = useHistory();
   const { isMobile } = useWindowSize();
   const { tokens: { A, AL, BG, FG, M, S, B, W } } = useTheme();
+  const hostProfileId =
+    hostData?.host?.hostId ||
+    hostData?.hostId ||
+    stay?.hostId ||
+    stay?.host?.hostId ||
+    stay?.leadUserId ||
+    stay?.userId ||
+    null;
   const policies = useMemo(() => {
     const categories = [];
 
@@ -739,7 +748,23 @@ function StayPoliciesAndContact({ stay, hostData, hostAvatar }) {
                     )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <h3 className="font-display" style={{ fontSize: isMobile ? 24 : 32, fontWeight: 700, color: FG, marginBottom: 4, wordBreak: "break-word", lineHeight: 1.2 }}>{primaryName}</h3>
+                    <h3
+                      className="font-display"
+                      onClick={() => {
+                        if (hostProfileId) history.push(`/host-profile?id=${hostProfileId}`);
+                      }}
+                      style={{
+                        fontSize: isMobile ? 24 : 32,
+                        fontWeight: 700,
+                        color: FG,
+                        marginBottom: 4,
+                        wordBreak: "break-word",
+                        lineHeight: 1.2,
+                        cursor: hostProfileId ? "pointer" : "default",
+                      }}
+                    >
+                      {primaryName}
+                    </h3>
                     <p style={{ fontSize: 14, color: M }}>Property Representative</p>
                   </div>
                 </div>
@@ -1104,6 +1129,24 @@ function PropertyStayCard({ stay }) {
     activeSeason?.price ??
     null;
   const priceValue = seasonalB2CPrice ?? basePrice;
+  const billingConfigDiscounts =
+    stay?.billingConfig?.discounts ||
+    stay?.billing_config?.discounts ||
+    [];
+  const discountRate = Array.isArray(billingConfigDiscounts)
+    ? Math.max(
+        0,
+        Math.min(
+          100,
+          billingConfigDiscounts.reduce((sum, discount) => {
+            const rate = Number(discount?.currentRate ?? discount?.current_rate ?? 0);
+            return sum + (Number.isFinite(rate) ? rate : 0);
+          }, 0)
+        )
+      )
+    : 0;
+  const discountedPriceValue =
+    priceValue != null ? Math.max(0, Number(priceValue) * (1 - discountRate / 100)) : null;
   const showSeasonal = seasonalB2CPrice != null;
   const propertyName = stay?.propertyName || stay?.title || stay?.name || "Property Stay";
 
@@ -1248,9 +1291,20 @@ function PropertyStayCard({ stay }) {
             }}
           >
             <div style={{ fontSize: 10, color: M, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>Price</div>
-            <div style={{ fontSize: 16, color: FG, fontWeight: 800, marginTop: 4 }}>
-              {priceValue != null ? `₹${Number(priceValue).toLocaleString("en-IN")} / night` : "Price on request"}
-            </div>
+            {priceValue != null ? (
+              <div style={{ marginTop: 4, display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                {discountRate > 0 && (
+                  <span style={{ fontSize: 13, color: M, textDecoration: "line-through", opacity: 0.8 }}>
+                    {"\u20B9"}{Number(priceValue).toLocaleString("en-IN")}
+                  </span>
+                )}
+                <span style={{ fontSize: 16, color: FG, fontWeight: 800 }}>
+                  {"\u20B9"}{Number(discountRate > 0 ? discountedPriceValue : priceValue).toLocaleString("en-IN")} / night
+                </span>
+              </div>
+            ) : (
+              <div style={{ fontSize: 16, color: FG, fontWeight: 800, marginTop: 4 }}>Price on request</div>
+            )}
             {showSeasonal && (
               <div style={{ marginTop: 4, fontSize: 10, fontWeight: 700, color: A, textTransform: "uppercase", letterSpacing: "0.08em" }}>
                 Seasonal B2C Price
@@ -1576,3 +1630,4 @@ function StayLocation({ stay }) {
 }
 
 export default StayDetails;
+
