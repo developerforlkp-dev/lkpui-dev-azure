@@ -649,14 +649,29 @@ function StayPoliciesAndContact({ stay, hostData, hostAvatar }) {
 
     // 3. Cancellation Policy
     const cancelItems = [];
-    if (stay?.privacyAndPolicy?.cancellationPolicyTemplate && stay.privacyAndPolicy.cancellationPolicyTemplate !== "No cancellation policy rules defined.") {
-      cancelItems.push({ id: 'cancel-1', title: "Cancellation Terms", body: stay.privacyAndPolicy.cancellationPolicyTemplate });
+    const summaryText = stay?.cancellationPolicySummary || 
+                        stay?.privacyAndPolicy?.cancellationPolicySummary || 
+                        stay?.listing?.cancellationPolicySummary || 
+                        stay?.stay?.cancellationPolicySummary ||
+                        stay?.generatedPolicySummary || 
+                        stay?.policySummary || 
+                        stay?.cancellation_policy_summary;
+
+    const templateText = stay?.cancellationPolicyTemplate || 
+                         stay?.privacyAndPolicy?.cancellationPolicyTemplate || 
+                         stay?.listing?.cancellationPolicyTemplate || 
+                         stay?.stay?.cancellationPolicyTemplate ||
+                         stay?.cancellationPolicy || 
+                         stay?.cancellationPolicyText;
+
+    if (summaryText && summaryText.trim().length > 5 && !summaryText.toLowerCase().includes("no cancellation policy summary")) {
+      cancelItems.push({ id: 'cancel-1', title: "Cancellation Terms", body: summaryText });
+    } else if (templateText && templateText.trim().length > 0 && !templateText.toLowerCase().includes("no cancellation policy rules")) {
+      cancelItems.push({ id: 'cancel-1', title: "Cancellation Terms", body: templateText });
     } else {
       const rawCancelRules = stay?.cancellationPolicyRules || stay?.cancellationPolicyRule || stay?.cancellationRules || findArrayWithKey(stay, 'policyRule');
       if (Array.isArray(rawCancelRules) && rawCancelRules.length > 0) {
         rawCancelRules.forEach((r, i) => cancelItems.push({ id: `cancel-${i}`, title: `Rule ${i + 1}`, body: extractText(r) }));
-      } else if (stay?.generatedPolicySummary || stay?.policySummary) {
-        cancelItems.push({ id: 'cancel-1', title: "Summary", body: stay?.generatedPolicySummary || stay?.policySummary });
       } else if (stay?.cancellationPolicy || stay?.cancellationPolicyText) {
         cancelItems.push({ id: 'cancel-1', title: "Terms", body: stay.cancellationPolicy || stay.cancellationPolicyText });
       }

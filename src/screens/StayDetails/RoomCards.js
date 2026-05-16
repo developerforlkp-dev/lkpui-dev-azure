@@ -187,7 +187,25 @@ const RoomModal = ({ room, listing, onClose }) => {
   const bedInfo = room.bedType || room.bedTypeName || room.beddingType || (room.noOfBeds ? `${room.noOfBeds} Bed(s)` : null);
   const bedSize = room.bedSize;
   const inclusions = room.inclusions || room.roomInclusions || room.room_inclusions || [];
-  const cancellationPolicy = room.cancellationPolicy || room.cancellationTerms || listing?.privacyAndPolicy?.cancellationPolicyTemplate || listing?.cancellationPolicy;
+  const summaryText = listing?.cancellationPolicySummary || 
+                      listing?.privacyAndPolicy?.cancellationPolicySummary || 
+                      listing?.listing?.cancellationPolicySummary || 
+                      listing?.stay?.cancellationPolicySummary ||
+                      listing?.generatedPolicySummary || 
+                      listing?.policySummary || 
+                      listing?.cancellation_policy_summary;
+
+  const templateText = listing?.cancellationPolicyTemplate || 
+                       listing?.privacyAndPolicy?.cancellationPolicyTemplate || 
+                       listing?.listing?.cancellationPolicyTemplate || 
+                       listing?.stay?.cancellationPolicyTemplate ||
+                       listing?.cancellationPolicy || 
+                       listing?.cancellationPolicyText;
+
+  const cancellationPolicy = room.cancellationPolicy || 
+                             room.cancellationTerms || 
+                             (summaryText && summaryText.trim().length > 5 && !summaryText.toLowerCase().includes("no cancellation policy summary") ? summaryText : null) ||
+                             (templateText && templateText.trim().length > 0 && !templateText.toLowerCase().includes("no cancellation policy rules") ? templateText : null);
 
   useEffect(() => {
     if (listing?.scrollToAmenities && scrollRef.current) {
