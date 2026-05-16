@@ -5,7 +5,6 @@ import Profile from "../../../components/Profile";
 import Icon from "../../../components/Icon";
 import Details from "./Details";
 import List from "./List";
-import Comment from "../../../components/Comment";
 import {
   getHost,
   getListings,
@@ -122,25 +121,12 @@ const Main = ({ hostId }) => {
 
   // Extract host information
   const host = hostData?.host || null;
-  const statistics = hostData?.statistics || null;
   const businessInterests = hostData?.businessInterests || [];
-  const hostReviews = hostData?.reviews || hostData?.recentReviews || [];
 
   // Format host name - ensure it's a single line string
   const hostName = host
     ? `${(host.firstName || "").trim()} ${(host.lastName || "").trim()}`.trim() || "Host"
     : "Host";
-
-  // Get rating and reviews
-  const rating = statistics?.averageRating || 0;
-  const reviewCount = statistics?.totalReviews || 0;
-  const ratingDisplay = rating > 0 ? rating.toFixed(1) : "0.0";
-  const reviewsText =
-    reviewCount === 0
-      ? "No reviews"
-      : reviewCount === 1
-      ? "1 review"
-      : `${reviewCount} reviews`;
 
   // Format joined date
   const formatJoinedDate = (dateString) => {
@@ -183,10 +169,7 @@ const Main = ({ hostId }) => {
           icon: "home",
         },
         {
-          title:
-            reviewCount > 0
-              ? `${reviewCount} ${reviewCount === 1 ? "review" : "reviews"}`
-              : "No reviews yet",
+          title: "Host profile",
           icon: "star-outline",
         },
       ]
@@ -196,7 +179,7 @@ const Main = ({ hostId }) => {
           icon: "home",
         },
         {
-          title: "No reviews yet",
+          title: "Host profile",
           icon: "star-outline",
         },
       ];
@@ -226,8 +209,13 @@ const Main = ({ hostId }) => {
   return (
     <div className={cn("section", styles.section)}>
       <div className={cn("container", styles.container)}>
-        <div className={styles.photo}>
-          <img src="/images/content/bg-profile-host.jpg" alt="Nature" />
+        <div className={styles.hero}>
+          <div className={styles.heroGlowOne} />
+          <div className={styles.heroGlowTwo} />
+          <div className={styles.heroContent}>
+            <div className={styles.heroEyebrow}>Host Profile</div>
+            <h1 className={styles.heroTitle}>{hostName}</h1>
+          </div>
         </div>
         <div className={styles.row}>
           <Profile
@@ -252,11 +240,6 @@ const Main = ({ hostId }) => {
               </div>
               <div className={styles.descriptionRow}>
                 <div className={styles.man}>{hostName}</div>
-                <div className={styles.rating}>
-                  <Icon name="star" size="20" />
-                  <div className={styles.number}>{ratingDisplay}</div>
-                  <div className={styles.reviews}>({reviewsText})</div>
-                </div>
               </div>
             </div>
           </Profile>
@@ -267,7 +250,6 @@ const Main = ({ hostId }) => {
               businessInterests={businessInterests}
             />
             <List className={styles.list} listingsByType={tabListings} hostName={hostName} />
-            <Comment reviews={hostReviews} />
           </div>
         </div>
       </div>
@@ -276,3 +258,4 @@ const Main = ({ hostId }) => {
 };
 
 export default Main;
+
