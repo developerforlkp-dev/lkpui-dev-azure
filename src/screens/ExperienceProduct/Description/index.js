@@ -1730,7 +1730,7 @@ const Description = ({ classSection, listing, hostData, externalRoomId, external
         customer: {
           name: customerName || "Guest User",
           email: customerEmail || "guest@example.com",
-          phone: customerPhone || "+911234567890",
+          phone: customerPhone || "",
         },
         specialRequests: specialRequests || "",
         paymentMethod: "razorpay",
@@ -1999,7 +1999,7 @@ const Description = ({ classSection, listing, hostData, externalRoomId, external
           window.google.accounts.id.renderButton(buttonContainer, {
             theme: "outline",
             size: "large",
-            width: "100%",
+            width: 350,
             text: "signin_with",
           });
           // Wait a bit then click
@@ -2192,7 +2192,7 @@ const Description = ({ classSection, listing, hostData, externalRoomId, external
       customer: {
         name: customerName || "Guest User",
         email: customerEmail || "guest@example.com",
-        phone: customerPhone || "+911234567890",
+        phone: customerPhone || "",
       },
       specialRequests: specialRequests || "",
       paymentMethod: "razorpay",
@@ -2857,7 +2857,7 @@ const Description = ({ classSection, listing, hostData, externalRoomId, external
       const customerPhone = userInfo.customerPhone ||
         (userInfo.phone ? (userInfo.countryCode || "+91") + userInfo.phone : "") ||
         userInfo.phoneNumber ||
-        userInfo.phone || "+911234567890";
+        userInfo.phone || "";
 
       let orderData;
 
@@ -2977,6 +2977,7 @@ const Description = ({ classSection, listing, hostData, externalRoomId, external
             {(!isFood && !isPlace) && (
               <Receipt
                 className={styles.receipt}
+                stacked={isStay}
                 items={items}
                 hostData={hostData}
                 priceActual={displayPrice}

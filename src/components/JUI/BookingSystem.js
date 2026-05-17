@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useHistory, useLocation } from "react-router-dom";
 import moment from "moment";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, Ticket, ChefHat, Bed, X, Sparkles, Clock, Users, Star, Plus, Minus, CheckCircle2, ShieldCheck, ChevronDown, Info, AlertCircle } from "lucide-react";
+import { Calendar, Ticket, ChefHat, Bed, X, Sparkles, Clock, Users, Star, Plus, Minus, CheckCircle2, ShieldCheck, ChevronDown, Info, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTheme } from "./Theme";
 import { Rev, Chars } from "./UI";
 
@@ -889,7 +889,7 @@ function EventInlineCalendar({ selectedDate, onDateSelect, availableDateKeys, to
     if (selectedDate) return makeLocalDate(getDateKey(selectedDate));
 
     const todayKey = getDateKey(new Date());
-    const availableKeys = [...availableDateKeys].filter((key) => key >= todayKey).sort();
+    const availableKeys = [...availableDateKeys].filter((key) => key > todayKey).sort();
     const currentMonthPrefix = todayKey.slice(0, 7);
     const currentMonthKey = availableKeys.find((key) => key.slice(0, 7) === currentMonthPrefix);
     const firstAvailableKey = currentMonthKey || availableKeys[0];
@@ -920,7 +920,9 @@ function EventInlineCalendar({ selectedDate, onDateSelect, availableDateKeys, to
       const day = index + 1;
       const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const isPast = key < todayKey;
-      return { day, key, isAvailable: !isPast && availableDateKeys.has(key), isPast };
+      const isToday = key === todayKey;
+      // Mark as unavailable if it's in the past OR if it's today
+      return { day, key, isAvailable: !isPast && !isToday && availableDateKeys.has(key), isPast, isToday };
     }),
   ];
 
@@ -989,7 +991,7 @@ function EventInlineCalendar({ selectedDate, onDateSelect, availableDateKeys, to
   );
 }
 
-export function BookingSystem({ listing, type = "experience", selectedAddOns = [], triggerLabel = "Reserve Now", reserveLabel = "Reserve Experience" }) {
+export function BookingSystem({ listing, type = "experience", selectedAddOns = [], triggerLabel = "Reserve Now", reserveLabel = "Reserve Experience", onUpdateAddonQuantity }) {
   const history = useHistory();
   const { tokens: { A, AH, BG, FG, M, S, B, AL, W, E, EL } } = useTheme();
   const isMountedRef = useRef(true);
@@ -1061,7 +1063,10 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
           console.log("🔄 Restoring persistent booking state after auth redirect:", stored);
           if (stored.startDate) {
             const parsedDate = moment(stored.startDate);
-            if (parsedDate.isValid()) setStartDate(parsedDate);
+            const todayKey = moment().format("YYYY-MM-DD");
+            if (parsedDate.isValid() && parsedDate.format("YYYY-MM-DD") !== todayKey) {
+              setStartDate(parsedDate);
+            }
           }
           if (stored.startTime !== undefined) setStartTime(stored.startTime);
           if (stored.guests) setGuests(stored.guests);
@@ -1360,21 +1365,16 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
     setStartTime(firstSlot ? firstSlot.slotName : null);
   }, [canSelectMultipleEventSlots, eventSlots, isEventBooking, selectedEventSlotIds, isEventSlotAccessible]);
 
-  const getAddonLineTotal = useCallback((item, guestCount) => {
+  const getAddonLineTotal = useCallback((item) => {
     const addon = item?.addon || item || {};
     const addonPrice = parseFloat(addon?.price || addon?.addonPrice || 0) || 0;
     const quantity = Number(item?.quantity || addon?.quantity || 1) || 1;
-    const pricingTypeRaw = String(addon?.pricingType || addon?.pricing_type || "").toLowerCase();
-    const isIndividualAddon = pricingTypeRaw === "individual";
-    const billableGuestCount = Math.max(1, Number(guestCount || 0));
-    return isIndividualAddon
-      ? addonPrice * quantity * billableGuestCount
-      : addonPrice;
+    return addonPrice * quantity;
   }, []);
 
   // Calculate addon total
   const addOnsTotal = selectedAddOns.reduce((sum, item) => (
-    sum + getAddonLineTotal(item, totalGuests)
+    sum + getAddonLineTotal(item)
   ), 0);
 
   // Extract proper price depending on whether a time slot is selected
@@ -1682,7 +1682,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
       })();
       const customerName = `${customerDetails.firstName || ""} ${customerDetails.lastName || ""}`.trim() || "Guest User";
       const customerEmail = customerDetails.email || "guest@example.com";
-      const customerPhone = customerDetails.phone || "+911234567890";
+      const customerPhone = customerDetails.phone || "";
 
       if (!eventIdNum || !eventSlotIdNum || !ticketTypeId) {
         setValidationErrors({ slot: "Unable to book: event ticket or slot information is missing." });
@@ -1906,14 +1906,10 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
       const addon = item.addon || item;
       const id = addon.addonId || addon.id;
       const quantity = Number(item.quantity || addon.quantity || 1) || 1;
-      const pricingTypeRaw = String(addon?.pricingType || addon?.pricing_type || "").toLowerCase();
-      const isIndividualAddon = pricingTypeRaw === "individual";
-      const addonLineTotal = getAddonLineTotal(item, totalGuests);
+      const addonLineTotal = getAddonLineTotal(item);
       addOnQuantities[id] = quantity;
       receipt.push({
-        title: isIndividualAddon
-          ? `${addon.title || "Add-on"} × ${quantity} × ${Math.max(1, totalGuests)} guest${Math.max(1, totalGuests) > 1 ? "s" : ""}`
-          : `${addon.title || "Add-on"} × ${quantity}`,
+        title: `${addon.title || "Add-on"} × ${quantity}`,
         content: `₹${addonLineTotal.toFixed(2)}`,
         kind: "addon",
         showInCheckout: false
@@ -1981,7 +1977,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
         addonId,
         addonName: addon.title || addon.name || addon.addonName || "Add-on",
         addonPrice: parseFloat(addon.price || addon.addonPrice || 0),
-        quantity: addon.quantity || 1,
+        quantity: Number(item.quantity || addon.quantity || 1) || 1,
       };
     }).filter(Boolean);
 
@@ -2004,7 +2000,7 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
       customer: {
         name: userInfo.name || (userInfo.firstName ? `${userInfo.firstName} ${userInfo.lastName || ""}`.trim() : "") || "Guest User",
         email: userInfo.email || userInfo.customerEmail || "guest@example.com",
-        phone: userInfo.customerPhone || userInfo.phoneNumber || userInfo.phone || "+911234567890",
+        phone: userInfo.customerPhone || userInfo.phoneNumber || userInfo.phone || "",
       },
       specialRequests: "",
       paymentMethod: "razorpay",
@@ -2119,18 +2115,6 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
     setShow(true);
 
     if (isEventBooking || !listingId || !slotsLookupEndDate) return;
-
-    const todayKey = getDateKey(new Date());
-    getListingSlots(listingId, todayKey, slotsLookupEndDate)
-      .then((payload) => {
-        if (!isMountedRef.current || selectedDateKey !== todayKey) return;
-        const normalized = normalizeExperienceSlots(unwrapSlotsPayload(payload), todayKey);
-        setDateFilteredSlots(normalized);
-        setDateFilteredSlotsLoaded(true);
-      })
-      .catch((error) => {
-        console.warn("Could not preload slots on reserve click:", error?.response?.data || error?.message || error);
-      });
   }, [isEventBooking, listingId, selectedDateKey, slotsLookupEndDate, triggerDisabled]);
 
   // Check if all experience dates/slots are in the past
@@ -2242,8 +2226,8 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
               }}
             >
               {/* Header */}
-              <div className="booking-modal-header" style={{ padding: "10px 24px", borderBottom: `1px solid ${B}88`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
+              <div className="booking-modal-header" style={{ padding: "12px 24px", borderBottom: `1px solid ${B}88`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
+                <div style={{ flexShrink: 0 }}>
                   <h2 style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: A, marginBottom: 2 }}>
                     {isEventBooking ? "Reserve Your Event" : "Reserve Your Experience"}
                   </h2>
@@ -2272,12 +2256,119 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
                     })()}
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+
+                <div style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
                   <button onClick={() => setShow(false)} style={{ background: S, border: `1px solid ${B}`, padding: 8, borderRadius: 100, cursor: "pointer", color: FG, display: "flex", alignItems: "center", justifyContent: "center", transition: "0.3s" }}>
                     <X size={18} />
                   </button>
                 </div>
               </div>
+
+              {/* Add-ons Row */}
+              {(listing?.addons || []).length > 0 && (
+                <div style={{ padding: "12px 24px", background: BG, borderBottom: `1px solid ${B}88` }}>
+                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                    <button 
+                      className="addon-scroll-btn"
+                      onClick={() => {
+                        const container = document.getElementById("header-addons-scroll");
+                        if (container) container.scrollBy({ left: -200, behavior: 'smooth' });
+                      }}
+                      style={{ position: "absolute", left: -12, zIndex: 10, background: BG, border: `1px solid ${B}`, borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: FG, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    
+                    <div id="header-addons-scroll" style={{
+                      display: "flex",
+                      overflowX: "auto",
+                      gap: 12,
+                      padding: "4px 8px",
+                      margin: "0 4px",
+                      WebkitOverflowScrolling: "touch",
+                      scrollbarWidth: "none",
+                      msOverflowStyle: "none",
+                      width: "100%",
+                      maskImage: "linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent)",
+                      WebkitMaskImage: "linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent)"
+                    }}>
+                      <style>{`#header-addons-scroll::-webkit-scrollbar { display: none; }`}</style>
+                      {listing.addons.map((item, i) => {
+                        const addon = item.addon || item;
+                        const addonId = addon.addonId || addon.id;
+                        const pricingType = addon.pricingType || (addon.priceType === "per_booking" ? "Group" : "Individual");
+                        const isSelected = selectedAddOns.some(a => (a.addonId || a.id) === addonId);
+                        const quantity = selectedAddOns.find(a => (a.addonId || a.id) === addonId)?.quantity || 1;
+                        const addonImage = addon.imageUrl || (addon.imageUrls && addon.imageUrls[0]) || addon.image;
+                        
+                        return (
+                          <div key={i} style={{
+                            flexShrink: 0,
+                            minWidth: 160,
+                            maxWidth: 180,
+                            background: isSelected ? AL : S,
+                            border: `1px solid ${isSelected ? A : B}`,
+                            borderRadius: 12,
+                            padding: "6px 10px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            transition: "0.2s",
+                            cursor: "default"
+                          }}>
+                            {addonImage && (
+                              <div style={{ width: 28, height: 28, borderRadius: 6, overflow: "hidden", flexShrink: 0, border: `1px solid ${B}` }}>
+                                <img src={addonImage} alt={addon.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              </div>
+                            )}
+                            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                              <p style={{ fontSize: 10, fontWeight: 700, color: isSelected ? A : FG, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{addon.title}</p>
+                              <p style={{ fontSize: 10, fontWeight: 800, color: M, marginTop: 2 }}>{addon.price > 0 ? `₹${addon.price}` : "Free"}</p>
+                            </div>
+                            
+                            <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                              {isSelected ? (
+                                pricingType === "Group" ? (
+                                  <button
+                                    onClick={() => onUpdateAddonQuantity && onUpdateAddonQuantity(addon, -1)}
+                                    style={{ background: A, color: "#fff", border: "none", borderRadius: 100, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", cursor: onUpdateAddonQuantity ? "pointer" : "default" }}
+                                  >
+                                    <CheckCircle2 size={12} />
+                                  </button>
+                                ) : (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 4, background: BG, borderRadius: 100, border: `1px solid ${A}44`, padding: "2px" }}>
+                                    <button onClick={() => onUpdateAddonQuantity && onUpdateAddonQuantity(addon, -1)} style={{ background: "none", border: "none", padding: 2, cursor: onUpdateAddonQuantity ? "pointer" : "default", color: A }}><Minus size={10} /></button>
+                                    <span style={{ fontSize: 10, fontWeight: 700, minWidth: 10, textAlign: "center", color: A }}>{quantity}</span>
+                                    <button onClick={() => onUpdateAddonQuantity && onUpdateAddonQuantity(addon, 1)} style={{ background: "none", border: "none", padding: 2, cursor: onUpdateAddonQuantity ? "pointer" : "default", color: A }}><Plus size={10} /></button>
+                                  </div>
+                                )
+                              ) : (
+                                <button
+                                  onClick={() => onUpdateAddonQuantity && onUpdateAddonQuantity(addon, 1)}
+                                  style={{ background: BG, color: FG, border: `1px solid ${B}`, borderRadius: 100, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", cursor: onUpdateAddonQuantity ? "pointer" : "default" }}
+                                >
+                                  <Plus size={12} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <button 
+                      className="addon-scroll-btn"
+                      onClick={() => {
+                        const container = document.getElementById("header-addons-scroll");
+                        if (container) container.scrollBy({ left: 200, behavior: 'smooth' });
+                      }}
+                      style={{ position: "absolute", right: -12, zIndex: 10, background: BG, border: `1px solid ${B}`, borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: FG, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="booking-modal-content" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch" }}>
 
@@ -2736,6 +2827,8 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
                 </div>
               </div>
 
+
+
               {/* Footer Button */}
               <div className="booking-modal-footer" style={{ padding: "8px 24px", background: BG, borderTop: `1px solid ${B}88`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", flexDirection: "column" }}>
@@ -2807,6 +2900,9 @@ export function BookingSystem({ listing, type = "experience", selectedAddOns = [
             max-height: 100vh !important; 
             border-radius: 24px 24px 0 0 !important; 
             margin: 0 !important;
+          }
+          .addon-scroll-btn {
+            display: none !important;
           }
           .booking-grid { grid-template-columns: 1fr !important; }
           .booking-modal-header { padding: 24px 20px !important; }

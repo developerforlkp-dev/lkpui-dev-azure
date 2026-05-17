@@ -4,11 +4,6 @@ import styles from "./Details.module.sass";
 import Icon from "../../../../components/Icon";
 
 const Details = ({ className, host, businessInterests }) => {
-  // Format host name
-  const hostName = host
-    ? `${host.firstName || ""} ${host.lastName || ""}`.trim() || "Host"
-    : "Host";
-
   // Build options from host data
   const options = [];
   
@@ -39,7 +34,7 @@ const Details = ({ className, host, businessInterests }) => {
 
   return (
     <div className={cn(className, styles.details)}>
-      <div className={styles.title}>About {hostName}</div>
+      <div className={styles.title}>About Host</div>
       <div className={styles.content}>
         {host?.bio || "No biography available."}
       </div>

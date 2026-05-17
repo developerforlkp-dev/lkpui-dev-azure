@@ -64,18 +64,40 @@ export const useListings = ({
         Array.isArray(categoryFilter.categoryValues) &&
         categoryFilter.categoryValues.length > 0
       );
+      const hasRatingFilter = Array.isArray(filters.ratings) && filters.ratings.length > 0;
+      const hasCustomMin = filters?.priceRange?.min !== "" && filters?.priceRange?.min !== null && filters?.priceRange?.min !== undefined;
+      const hasCustomMax = filters?.priceRange?.max !== "" && filters?.priceRange?.max !== null && filters?.priceRange?.max !== undefined;
+      const customMin = hasCustomMin ? Number(filters.priceRange.min) : undefined;
+      const customMax = hasCustomMax ? Number(filters.priceRange.max) : undefined;
+      const presetMax = filters?.pricePresetMax !== null && filters?.pricePresetMax !== undefined
+        ? Number(filters.pricePresetMax)
+        : undefined;
+      const shouldUseCustomPrice = (hasCustomMin && Number.isFinite(customMin) && customMin >= 0)
+        || (hasCustomMax && Number.isFinite(customMax) && customMax >= 0);
+      const shouldUsePresetPrice = !shouldUseCustomPrice && Number.isFinite(presetMax) && presetMax > 0;
+      const effectiveMinPrice = shouldUseCustomPrice
+        ? (Number.isFinite(customMin) && customMin >= 0 ? customMin : undefined)
+        : (shouldUsePresetPrice ? 0 : undefined);
+      const effectiveMaxPrice = shouldUseCustomPrice
+        ? (Number.isFinite(customMax) && customMax >= 0 ? customMax : undefined)
+        : (shouldUsePresetPrice ? presetMax : undefined);
 
-      if (hasCategoryFilter) {
+      const hasPriceFilter = effectiveMinPrice !== undefined || effectiveMaxPrice !== undefined;
+
+      if (hasCategoryFilter || hasRatingFilter || hasPriceFilter) {
         const mappedBusinessInterestId =
-          categoryFilter.businessInterestId || mapBusinessInterestId(businessInterest);
+          categoryFilter?.businessInterestId || mapBusinessInterestId(businessInterest);
 
         const filteredResponse = await getFilteredListings({
           businessInterestId: mappedBusinessInterestId,
-          categoryType: categoryFilter.categoryType,
-          categoryValues: categoryFilter.categoryValues,
+          categoryType: categoryFilter?.categoryType,
+          categoryValues: categoryFilter?.categoryValues || [],
+          ratingFilter: hasRatingFilter ? Math.max(...filters.ratings) : undefined,
+          minPrice: effectiveMinPrice,
+          maxPrice: effectiveMaxPrice,
           limit,
           offset: nextOffset,
-          sortBy: categoryFilter.sortBy || "newest",
+          sortBy: categoryFilter?.sortBy || "newest",
         });
 
         listings = filteredResponse.listings || [];
@@ -131,13 +153,11 @@ export const useListings = ({
         }
 
         // Add filters
-        if (filters.priceRange) {
-          if (filters.priceRange.min !== undefined) {
-            params.minPrice = filters.priceRange.min;
-          }
-          if (filters.priceRange.max !== undefined) {
-            params.maxPrice = filters.priceRange.max;
-          }
+        if (effectiveMinPrice !== undefined) {
+          params.minPrice = effectiveMinPrice;
+        }
+        if (effectiveMaxPrice !== undefined) {
+          params.maxPrice = effectiveMaxPrice;
         }
 
         if (filters.propertyTypes && filters.propertyTypes.length > 0) {

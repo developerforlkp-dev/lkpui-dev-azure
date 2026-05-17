@@ -25,20 +25,16 @@
 .btns
     margin-top: 32px
     display: flex
-    justify-content: center
+    flex-direction: column
+    align-items: center
     width: 100%
     max-width: 100%
     min-width: 0
     box-sizing: border-box
-    // Override injected Google SDK wrapper/iframe fixed widths safely
-    & > div,
-    & iframe,
-    & [id^="credential_picker_container"],
-    & [id^="google"]
-        width: 100% !important
-        max-width: 100% !important
-        min-width: 0 !important
-        box-sizing: border-box !important
+    // Remove forced width to allow fixed-width Google button
+    & > div
+        width: auto !important
+        margin: 0 auto
 
 .googleBtn
     display: flex

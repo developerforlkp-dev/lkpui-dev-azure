@@ -228,6 +228,9 @@ export const getFilteredListings = async ({
   businessInterestId,
   categoryType,
   categoryValues = [],
+  ratingFilter,
+  minPrice,
+  maxPrice,
   limit = 20,
   offset = 0,
   sortBy = "newest",
@@ -252,8 +255,23 @@ export const getFilteredListings = async ({
       params.categoryType = categoryType;
     }
     if (normalizedCategoryValues.length > 0) {
-      params.categoryValues = normalizedCategoryValues;
+      params.categoryValues = normalizedCategoryValues.join(",");
     }
+    if (ratingFilter !== undefined && ratingFilter !== null && String(ratingFilter).trim() !== "") {
+      params.ratingFilter = Number(ratingFilter);
+    }
+    if (minPrice !== undefined && minPrice !== null && Number(minPrice) >= 0) {
+      params.minPrice = Number(minPrice);
+    }
+    if (maxPrice !== undefined && maxPrice !== null && Number(maxPrice) >= 0) {
+      params.maxPrice = Number(maxPrice);
+    }
+
+    console.log("🔎 Filter API Request:", {
+      endpoint: "/api/public/listings/filter",
+      axiosPath: "/public/listings/filter",
+      params,
+    });
 
     const response = await ListingsAPI.get("/public/listings/filter", { params });
     const payload = response.data;
@@ -1417,8 +1435,9 @@ export const getEventReviews = async (eventId) => {
     return payload;
   } catch (error) {
     console.error(`❌ Error fetching reviews for event ${eventId}:`, error.response?.data || error.message);
-    // Fallback to listing reviews if event-specific endpoint fails or isn't appropriate
-    return getListingReviews(eventId);
+    // Do not fallback to listing reviews for events. That can show unrelated reviews.
+    // Return empty event reviews payload so UI shows "No reviews yet".
+    return { ratingSummary: { totalReviews: 0, averageRating: 0 }, reviews: [] };
   }
 };
 

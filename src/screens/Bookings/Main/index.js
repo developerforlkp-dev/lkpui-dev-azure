@@ -252,8 +252,18 @@ const transformBookingData = (apiBooking, listingData = null, eventData = null, 
   // Override status based on date to ensure correct tab categorization (Upcoming vs Completed).
   // This ensures stays and experiences only move to Completed after their end date has passed.
   if (status === "Upcoming" || status === "Completed") {
+    const stayRooms = Array.isArray(apiBooking?.stayOrderRooms) ? apiBooking.stayOrderRooms : [];
+    const roomCheckOutDates = stayRooms
+      .map((room) => room?.checkOutDate || room?.checkoutDate || room?.check_out_date)
+      .filter(Boolean);
+    const roomCheckOutTimes = stayRooms
+      .map((room) => room?.checkOutTime || room?.checkoutTime || room?.check_out_time)
+      .filter(Boolean);
+
     const bookingDateStr =
+      roomCheckOutDates[0] ||
       apiBooking.checkOutDate ||
+      apiBooking.checkoutDate ||
       apiBooking.checkInDate ||
       apiBooking.bookingDate ||
       apiBooking.eventDate ||
@@ -264,7 +274,13 @@ const transformBookingData = (apiBooking, listingData = null, eventData = null, 
       // Compare against end-of-experience time if available, otherwise end-of-day
       const deadline = new Date(bookingDateStr);
       
-      const endTimeStr = apiBooking.timeSlotEndTime || apiBooking.checkOutTime || apiBooking.endTime || apiBooking.bookingTime;
+      const endTimeStr =
+        roomCheckOutTimes[0] ||
+        apiBooking.timeSlotEndTime ||
+        apiBooking.checkOutTime ||
+        apiBooking.checkoutTime ||
+        apiBooking.endTime ||
+        apiBooking.bookingTime;
       
       if (endTimeStr && typeof endTimeStr === 'string' && endTimeStr.includes(':')) {
         const [hours, minutes, seconds] = endTimeStr.split(':').map(Number);
@@ -519,6 +535,27 @@ const actionsByStatus = {
   Cancelled: [
     { label: "View Details", variant: "primary" },
   ],
+};
+
+const getAllowedActionsForTab = (tabId, booking, orderIdsEligibleForReview) => {
+  const baseActions = actionsByStatus[booking?.status] || [];
+
+  if (tabId === "cancelled") {
+    return baseActions.filter((a) => a.label === "View Details");
+  }
+
+  if (tabId === "upcoming") {
+    return baseActions.filter((a) => a.label !== "Leave review");
+  }
+
+  if (tabId === "completed") {
+    return baseActions.filter((a) => {
+      if (a.label !== "Leave review") return true;
+      return orderIdsEligibleForReview.has(booking.orderId);
+    });
+  }
+
+  return baseActions;
 };
 
 const Main = ({
@@ -1163,7 +1200,7 @@ const Main = ({
                         </div>
                       </div>
                       <div className={styles.actions}>
-                        {(actionsByStatus[booking.status] || []).map((action) => {
+                        {getAllowedActionsForTab(displayedTab, booking, orderIdsEligibleForReview).map((action) => {
                           if (action.label === "View Details") {
                             // Pass businessInterestCode (category) to determine which API to use
                             const isEvent = booking.category === "EVENTS" ||
@@ -1183,7 +1220,6 @@ const Main = ({
                             );
                           }
                           if (action.label === "Cancel Booking") {
-                            if (displayedTab === "cancelled") return null;
                             return (
                               <button
                                 type="button"
@@ -1196,8 +1232,6 @@ const Main = ({
                             );
                           }
                           if (action.label === "Leave review") {
-                            if (displayedTab !== "completed") return null;
-                            if (!orderIdsEligibleForReview.has(booking.orderId)) return null;
                             return (
                               <button
                                 type="button"

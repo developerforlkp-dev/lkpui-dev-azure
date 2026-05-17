@@ -42,8 +42,11 @@ import StayProduct from "./screens/StayProduct";
 import StayDetails from "./screens/StayDetails";
 import FoodDetails from "./screens/FoodDetails";
 import PlaceDetails from "./screens/PlaceDetails";
+import ReviewsListing from "./screens/ReviewsListing";
 import { ThemeProvider } from "./components/JUI/Theme";
 import { Cursor, ProgressBar } from "./components/JUI/UI";
+import ScrollToTop from "./components/ScrollToTop";
+import AnalyticsTracker from "./components/AnalyticsTracker";
 
 function App() {
   // Get Google Client ID from environment variable
@@ -63,6 +66,8 @@ function App() {
     <GoogleOAuthProvider clientId={googleClientId}>
       <ThemeProvider>
         <Router>
+          <AnalyticsTracker />
+          <ScrollToTop />
           <Cursor />
           <ProgressBar />
           <Switch>
@@ -397,6 +402,21 @@ function App() {
             render={() => (
               <Page separatorHeader>
                 <PlaceDetails />
+              </Page>
+            )}
+          />
+          <Route
+            exact
+            path={[
+              "/reviews",
+              "/reviews/listing/:id",
+              "/reviews/experience/:id",
+              "/reviews/event/:id",
+              "/reviews/stay/:id",
+            ]}
+            render={() => (
+              <Page separatorHeader>
+                <ReviewsListing />
               </Page>
             )}
           />

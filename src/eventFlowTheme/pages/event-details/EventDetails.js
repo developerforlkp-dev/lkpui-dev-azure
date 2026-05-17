@@ -7,7 +7,7 @@ import { disableBodyScroll, enableBodyScroll } from "body-scroll-lock";
 import { X, Plus as PlusIcon } from "lucide-react";
 import { BookingSystem } from "../../../components/JUI/BookingSystem";
 import { Footer } from "../../../components/JUI/Footer";
-import { getEventDetails, getHost, getListingReviews } from "../../../utils/api";
+import { getEventDetails, getEventReviews, getHost } from "../../../utils/api";
 import { buildExperienceUrl } from "../../../utils/experienceUrl";
 import { useTheme } from "../../../components/JUI/Theme";
 import Loader from "../../../components/Loader";
@@ -312,7 +312,7 @@ const ScopedStyles = () => (
     #cur-ring { position: fixed; width: 38px; height: 38px; border: 1.5px solid var(--AL); border-radius: 50%; pointer-events: none; z-index: 99998; transform: translate(-50%, -50%); transition: width 0.3s, height 0.3s, border-color 0.3s; }
     
     .gallery-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; align-items: start; height: 850px; overflow: hidden; border-radius: 40px; }
-    .artist-row { display: grid; grid-template-columns: 80px 1fr 150px 90px; gap: 24px; padding: 26px 0; border-bottom: 1px solid var(--B); align-items: center; cursor: default; transition: padding 0.3s, background 0.3s; }
+    .artist-row { display: grid; grid-template-columns: 80px 1fr 150px; gap: 24px; padding: 26px 0; border-bottom: 1px solid var(--B); align-items: center; cursor: default; transition: padding 0.3s, background 0.3s; }
     .artist-image-tile { width: 150px; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: var(--S); border: 1px solid var(--B); }
     .artist-image-tile img { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(1); transition: filter 0.55s cubic-bezier(0.22, 1, 0.36, 1), transform 0.55s cubic-bezier(0.22, 1, 0.36, 1); }
     .artist-row:hover .artist-image-tile img { filter: grayscale(0); transform: scale(1.04); }
@@ -991,9 +991,6 @@ function Artists({ event }) {
                     </div>
                   )}
                 </div>
-                <motion.div animate={{ x: hov === a.id ? 4 : 0, opacity: hov === a.id ? 1 : 0.2 }} style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <ArrowRight size={16} color={A} />
-                </motion.div>
               </motion.div>
             ))}
           </div>
@@ -1203,6 +1200,12 @@ function HostDetails({ event, hostName, reviews = [] }) {
   const displayHostName = hostName || event?.host?.displayName || event?.host?.name || event?.host?.firstName || event?.organizerName;
   const hostProfile = event?.hostProfile;
   const host = hostProfile?.host || hostProfile || event?.host || {};
+  const hostLeadUserId =
+    host?.leadUserId ||
+    hostProfile?.leadUserId ||
+    event?.leadUserId ||
+    event?.host?.leadUserId ||
+    event?.hostId;
   const hostDescription = host?.description || host?.bio || host?.about || host?.summary || event?.organizerDescription || "Curators of memorable experiences, thoughtful gatherings, and community-led moments.";
   const hostSubtitle = host?.tagline || host?.businessName || host?.companyName || host?.role || "Event host";
 
@@ -1212,7 +1215,38 @@ function HostDetails({ event, hostName, reviews = [] }) {
     : Array.isArray(reviews?.reviews)
       ? reviews.reviews
       : [];
-  const ratingSummary = !Array.isArray(reviews) && reviews?.ratingSummary ? reviews.ratingSummary : null;
+  const ratingSummaryRaw = !Array.isArray(reviews)
+    ? (reviews?.ratingSummary || reviews?.summary || reviews?.data?.ratingSummary || reviews?.data?.summary || null)
+    : null;
+  const parseNumber = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
+  const derivedRatings = normalizedReviews
+    .map((rev) => parseNumber(rev?.rating ?? rev?.ratingScore ?? rev?.reviewRating ?? rev?.stars))
+    .filter((n) => n != null);
+  const derivedAverageRating = derivedRatings.length > 0
+    ? derivedRatings.reduce((sum, n) => sum + n, 0) / derivedRatings.length
+    : 0;
+  const rawAverageRating = parseNumber(
+    ratingSummaryRaw?.averageRating ??
+    ratingSummaryRaw?.average_rating ??
+    ratingSummaryRaw?.avgRating ??
+    ratingSummaryRaw?.avg_rating
+  );
+  const rawTotalReviews = parseNumber(
+    ratingSummaryRaw?.totalReviews ??
+    ratingSummaryRaw?.total_reviews ??
+    ratingSummaryRaw?.reviewCount ??
+    ratingSummaryRaw?.review_count
+  );
+  const ratingSummary = {
+    averageRating: rawAverageRating != null ? rawAverageRating : derivedAverageRating,
+    totalReviews: Math.max(rawTotalReviews || 0, normalizedReviews.length),
+    ratingDistribution: Array.isArray(ratingSummaryRaw?.ratingDistribution)
+      ? ratingSummaryRaw.ratingDistribution
+      : [],
+  };
   const displayReviews = normalizedReviews.slice(0, 2);
   const hasMore = normalizedReviews.length > 2;
 
@@ -1237,7 +1271,25 @@ function HostDetails({ event, hostName, reviews = [] }) {
           <Rev delay={0.1}>
             <div style={{ background: W, padding: 52, minHeight: 300 }}>
               <p className="host-presented-label" style={{ fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase", color: "#0097B2", WebkitTextFillColor: "#0097B2", marginBottom: 36, fontWeight: 700 }}>Meet Your Host</p>
-              <h3 className="font-display" style={{ fontSize: "clamp(2.4rem,5vw,4.2rem)", fontWeight: 700, color: FG, lineHeight: 1, marginBottom: 22 }}>
+              <h3
+                className="font-display"
+                style={{
+                  fontSize: "clamp(2.4rem,5vw,4.2rem)",
+                  fontWeight: 700,
+                  color: FG,
+                  lineHeight: 1,
+                  marginBottom: 22,
+                  cursor: hostLeadUserId ? "pointer" : "default",
+                  textDecoration: hostLeadUserId ? "underline" : "none",
+                  textUnderlineOffset: hostLeadUserId ? "8px" : undefined,
+                  textDecorationThickness: hostLeadUserId ? "1px" : undefined,
+                }}
+                onClick={() => {
+                  if (!hostLeadUserId) return;
+                  history.push(`/host-profile?id=${hostLeadUserId}`);
+                }}
+                title={hostLeadUserId ? "View host profile" : undefined}
+              >
                 {displayHostName || "Event Host"}
               </h3>
               <p style={{ color: M, fontSize: 14, fontStyle: "italic", lineHeight: 1.7, marginBottom: 28 }}>{hostSubtitle}</p>
@@ -1289,7 +1341,17 @@ function HostDetails({ event, hostName, reviews = [] }) {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                   {displayReviews.map((rev, i) => {
-                    const author = rev.customerName || rev.author || "Guest";
+                    const author =
+                      rev?.customerName ||
+                      rev?.reviewerName ||
+                      rev?.reviewer ||
+                      rev?.author ||
+                      rev?.customer?.fullName ||
+                      rev?.customer?.name ||
+                      rev?.user?.fullName ||
+                      rev?.user?.name ||
+                      rev?.createdByName ||
+                      "Guest";
                     const comment = rev.comment || rev.content || rev.reviewText || "";
                     const reviewRating = Number(rev.rating || rev.ratingScore || 0);
                     const time = formatReviewDate(rev.createdAt || rev.reviewDate || rev.time);
@@ -1835,8 +1897,8 @@ export default function EventDetails() {
           }
         }
 
-        // Fetch listing reviews (non-blocking)
-        getListingReviews(eventId).then(rev => {
+        // Fetch event-only reviews (non-blocking)
+        getEventReviews(eventId).then(rev => {
           if (mounted) setReviews(rev ?? []);
         }).catch(() => {
           if (mounted) setReviews([]);
